@@ -4,4 +4,4 @@
 
 A program for analysing Livesplit splits files and showing statistics, graphs and much more!
 
-At the moment mostly used for issue tracking since I'm still not quite sure how version management works on here
+At the moment only used for issue tracking and releases since I'm still not quite sure how version management works on here.
