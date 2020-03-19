@@ -1,6 +1,8 @@
 # SplitsAnalyser
 
-![release_shield](https://img.shields.io/github/v/release/noahkra/splitsanalyser?include_prereleases&color=blue) ![bug shield](https://img.shields.io/github/issues-raw/noahkra/splitsanalyser/bug) ![enhancements shield](https://img.shields.io/github/issues-raw/noahkra/splitsanalyser/enhancement) ![closedissues shield](https://img.shields.io/github/issues-closed-raw/noahkra/splitsanalyser?color=green)
+![release_shield](https://img.shields.io/github/v/release/noahkra/splitsanalyser?include_prereleases&color=blue) ![totaldownloads_shield](https://img.shields.io/github/downloads/noahkra/splitsanalyser/total?label=total%20downloads) ![latestdownloads_shield](https://img.shields.io/github/downloads-pre/noahkra/splitsanalyser/latest/total) 
+
+![bug shield](https://img.shields.io/github/issues-raw/noahkra/splitsanalyser/bug) ![enhancements shield](https://img.shields.io/github/issues-raw/noahkra/splitsanalyser/enhancement) ![closedissues shield](https://img.shields.io/github/issues-closed-raw/noahkra/splitsanalyser?color=green)
 
 A program for analysing Livesplit splits files and showing statistics, graphs and much more!
 
