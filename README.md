@@ -6,4 +6,8 @@
 
 A program for analysing Livesplit splits files and showing statistics, graphs and much more!
 
-At the moment only used for issue tracking and releases since I'm still not quite sure how version management works on here.
+## How the program is built up:
+Launching the program launches *app.js*. This will get electron up and running and will launch the splash screen *splash.html* while the main file is being loaded.
+The main file is *index.html*, which in itself launches *index.js*. This is where most of the code is stored.
+There's two main dependencies outside of the node modules, which are *d3.js* and *d3-legend.js*. Both are stored locally to speed up the program and having it as non-reliable to an internet connection as possible.
+Other node modules needed for development are specified in *package.json*.
