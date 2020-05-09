@@ -25,7 +25,7 @@ const fs                               = require('fs');
 const saveLocation = process.env.APPDATA + "\\splitsAnalyser\\";
 
 // Version
-const version = "0.4.0";
+const version = "0.4.1";
 
 // Set window title
 document.title = `SplitsAnalyser v${version}`;
