@@ -26,6 +26,7 @@ const saveLocation = process.env.APPDATA + "\\splitsAnalyser\\";
 
 // Version
 const version = "0.4.1";
+d3.select("#versionNumber").text(version); //set the version text to the correct number
 
 // Set window title
 document.title = `SplitsAnalyser v${version}`;
