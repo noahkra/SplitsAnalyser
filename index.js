@@ -181,8 +181,7 @@ d3.select("#minimizeButton").on("click", function() {
 d3.select("#minMaxButton").on("click", function() {
 	if(getCurrentWindow().isMaximized()){
 		getCurrentWindow().unmaximize();
-	}
-	else{
+	} else {
 		getCurrentWindow().maximize();
 	}
 });
@@ -1106,4 +1105,3 @@ function getLevDistance(string, target) { // Function for getting the Levenshtei
 // Execute first functions after loading up program.
 checkVersion();
 loadSplits();
-
