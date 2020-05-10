@@ -13,20 +13,21 @@ const analyser                         = require('./analyser.js');
 const gui                              = require('./gui.js');
 
 // Dependencies, sorted in decending order of line length because it looks neater
-const winscreen                        = require('electron').remote.screen;
-const xml2js                           = require('xml2js').parseString;
-const { dialog }                       = require('electron').remote;
-const { shell, ipcRenderer, webFrame } = require('electron');
-const request                          = require('request');
-const semVer                           = require('semver');
-const path                             = require('path');
-const fs                               = require('fs');
+const winscreen											= require('electron').remote.screen;
+const xml2js											= require('xml2js').parseString;
+const { dialog, getCurrentWindow}						= require('electron').remote;
+const { shell, ipcRenderer, webFrame }					= require('electron');
+const request											= require('request');
+const semVer											= require('semver');
+const path												= require('path');
+const fs												= require('fs');
 
 const saveLocation = process.env.APPDATA + "\\splitsAnalyser\\";
 
 // Version
 const version = "0.4.1";
 d3.select("#versionNumber").text(version); //set the version text to the correct number
+d3.select("#titleVersionNumber").text(version); //set the version text to the correct number
 
 // Set window title
 document.title = `SplitsAnalyser v${version}`;
@@ -169,6 +170,25 @@ window.addEventListener('keyup', (event) => {
 
 	}
 }, true); // True to make sure this eventlisterener is the first function that gets the events
+
+// New Status bar events
+// This handles the minimize button
+document.getElementById("minimizeButton").addEventListener('click', () =>{
+	getCurrentWindow().minimize();
+});
+// This handles the Min Max button
+document.getElementById("minMaxButton").addEventListener('click', () =>{
+	if(getCurrentWindow().isMaximized()){
+		getCurrentWindow().unmaximize();
+	}
+	else{
+		getCurrentWindow().maximize();
+	}
+});
+// This handles the Close button
+document.getElementById("closeButton").addEventListener('click', () =>{
+	getCurrentWindow().close();
+});
 
 // putting objects into arrays in case there's only one entry, in which case it isn't in an array and breaks all the code
 function convertToSingleArray(obj) {
