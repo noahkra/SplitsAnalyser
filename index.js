@@ -179,7 +179,7 @@ d3.select("#minimizeButton").on("click", function() {
 
 // This handles the Min Max button
 d3.select("#minMaxButton").on("click", function() {
-	if(getCurrentWindow().isMaximized()){
+	if (getCurrentWindow().isMaximized()) {
 		getCurrentWindow().unmaximize();
 	} else {
 		getCurrentWindow().maximize();
