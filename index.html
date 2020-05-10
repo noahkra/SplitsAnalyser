@@ -523,6 +523,34 @@
 		</style>
 	</head>
 	<body>
+		<div class="title-bar" style="height: 30px; background: #272729; -webkit-app-region: drag"> <!-- use to define the height of the status bar -->
+		  <div class="app-name-container" style="position: fixed; top: -10px; text-align: center; width: 100%"> <!-- use to define the location of the status bar title -->
+			<div><p>Splits Analyser</p></div>
+		  </div>
+		  <div class="window-controls-container" style="position: fixed; right: 0%; top: 0px; -webkit-app-region: no-drag">
+			<button 
+			  id="minimize-button"
+			  class="minimize-button"
+			  style="background: transparent; border: 0px; font-weight: 900"
+			>
+			-
+			</button>
+			<button 
+			  id="min-max-button"
+			  class="min-max-button"
+			  style="background: transparent; border: 0px; font-weight: 900"
+			>
+			&#9744
+			</button>
+			<button 
+			  id="close-button"
+			  class="close-button"
+			  style="background: transparent; border: 0px; font-weight: 900"
+			>
+			X
+			</button>
+		  </div>
+		</div>
 		<div id="dragdropDiv"></div><span id="dragdropSpan">Drop to add file(s)</span>
 		<div id="analyserContainer">
 			<div id="gamesSidebar">
