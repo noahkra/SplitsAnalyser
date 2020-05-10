@@ -16,7 +16,7 @@ const gui                              = require('./gui.js');
 const winscreen                        = require('electron').remote.screen;
 const xml2js                           = require('xml2js').parseString;
 const { dialog }                       = require('electron').remote;
-const { shell, ipcRenderer, webFrame } = require('electron');
+const { shell, ipcRenderer, webFrame, remote} = require('electron');
 const request                          = require('request');
 const semVer                           = require('semver');
 const path                             = require('path');
@@ -169,6 +169,26 @@ window.addEventListener('keyup', (event) => {
 
 	}
 }, true); // True to make sure this eventlisterener is the first function that gets the events
+
+//New Status bar events
+//This handles the minimize button
+document.getElementById("minimize-button").addEventListener('click', () =>{
+	remote.BrowserWindow.getFocusedWindow().minimize();
+});
+//This handles the Min Max button
+document.getElementById("min-max-button").addEventListener('click', () =>{
+	const currentWindow = remote.BrowserWindow.getFocusedWindow();
+	if(currentWindow.isMaximized()){
+		currentWindow.unmaximize();
+	}
+	else{
+		currentWindow.maximize();
+	}
+});
+//This handles the Close button
+document.getElementById("close-button").addEventListener('click', () =>{
+	remote.app.quit();
+});
 
 // putting objects into arrays in case there's only one entry, in which case it isn't in an array and breaks all the code
 function convertToSingleArray(obj) {
