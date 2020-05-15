@@ -15,7 +15,7 @@ const gui                              = require('./gui.js');
 // Dependencies, sorted in decending order of line length because it looks neater
 const winscreen                        = require('electron').remote.screen;
 const xml2js                           = require('xml2js').parseString;
-const { dialog }                       = require('electron').remote;
+const { dialog, getCurrentWindow}      = require('electron').remote;
 const { shell, ipcRenderer, webFrame } = require('electron');
 const request                          = require('request');
 const semVer                           = require('semver');
@@ -30,6 +30,7 @@ d3.select("#versionNumber").text(version); //set the version text to the correct
 
 // Set window title
 document.title = `SplitsAnalyser v${version}`;
+d3.select("#titleBarName").text(document.title); //set the title text to the correct name
 
 // Speedrun.com api results stored in here. Only updated on program launch.
 var src = {};
@@ -169,6 +170,26 @@ window.addEventListener('keyup', (event) => {
 
 	}
 }, true); // True to make sure this eventlisterener is the first function that gets the events
+
+// New Status bar events
+// This handles the minimize button
+d3.select("#minimizeButton").on("click", function() {
+	getCurrentWindow().minimize();
+})
+
+// This handles the Min Max button
+d3.select("#minMaxButton").on("click", function() {
+	if (getCurrentWindow().isMaximized()) {
+		getCurrentWindow().unmaximize();
+	} else {
+		getCurrentWindow().maximize();
+	}
+});
+// This handles the Close button
+d3.select("#closeButton").on("click", function() {
+	getCurrentWindow().close();
+});
+
 
 // putting objects into arrays in case there's only one entry, in which case it isn't in an array and breaks all the code
 function convertToSingleArray(obj) {
@@ -1084,4 +1105,3 @@ function getLevDistance(string, target) { // Function for getting the Levenshtei
 // Execute first functions after loading up program.
 checkVersion();
 loadSplits();
-

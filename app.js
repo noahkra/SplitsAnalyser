@@ -30,6 +30,7 @@ app.on('ready', () => {
 		options.width = programstate.winBounds.width;
 		options.height = programstate.winBounds.height;
 		curDisplay = screen.getDisplayNearestPoint({x: options.x, y: options.y});
+		options.frame = false; // turn the default framing off
 	}
 
 
@@ -49,7 +50,7 @@ app.on('ready', () => {
 			win.show();
 		}
 		// Comment out this line when building, uncomment when developing:
-		win.webContents.openDevTools();
+		//win.webContents.openDevTools();
 
 		win.on('will-move', (event, newBounds) => {
 			win.webContents.send('getBounds', newBounds);
