@@ -402,9 +402,7 @@ function importSplitFile(file) {
 		if (err) { throw err; } // Error handling
 		xml2js(data, {explicitArray: false},(err, result) => { // convert the xml to a JS object we can use
 			let gameName = result.Run.GameName.trim().toLowerCase().replace(/( )/g, "-"); // Variable for the game name which is used throughout this function
-			request({
-					url: `https://www.speedrun.com/api/v1/games?name=${gameName.replace(/(-)/g, "%20")}`
-				}, function(error, response, body) {
+				request({ url: `https://www.speedrun.com/api/v1/games?name=${gameName.replace(/(-)/g, "%20")}` }, function(error, response, body) {
 					try {
 						console.log(result);
 						if (body.startsWith("<")) {
