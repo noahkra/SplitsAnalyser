@@ -11,3 +11,6 @@ Launching the program launches *app.js*. This will get electron up and running a
 The main file is *index.html*, which in itself launches *index.js*. This is where most of the code is stored.
 There's two main dependencies outside of the node modules, which are *d3.js* and *d3-legend.js*. Both are stored locally to speed up the program and having it as non-reliable to an internet connection as possible.
 Other node modules needed for development are specified in *package.json*.
+
+## Contributing guidelines:
+Please make sure to check out CONTRIBUTING.md before contributing any code to the repo!
