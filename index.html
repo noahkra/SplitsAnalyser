@@ -520,116 +520,9 @@
 				grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
 			}
 
-			#minimizeButton {
-				background: transparent; 
-				border: 0px;
-				width: 30px;
-				height: 30px;
-				fill: var(--item-col);
-				transition: .15s;
-			}
-
-			#minimizeButton:hover {
-				background: var(--item-col);
-				fill: var(--highlight-col);
-			}
-
-			#minMaxButton {
-				background: transparent; 
-				border: 0px;
-				width: 30px;
-				height: 30px;
-				fill: var(--item-col);
-				transition: .15s;
-			}
-
-			#minMaxButton:hover {
-				background: var(--item-col); 
-				fill: var(--highlight-col);
-			}
-
-			#closeButton {
-				background: transparent;
-				border: 0px;
-				width: 30px;
-				height: 30px;
-				fill: var(--item-col);
-				transition: .15s;
-			}
-
-			#closeButton:hover {
-				background: red;
-				fill: var(--highlight-col);
-			}
-
-			#versionNumber {
-				position: fixed; 
-				text-align: center; 
-				right: 5px; 
-				bottom: 0px; 
-				color: var(--text-main-L-col); 
-				display: inline-block;
-			}
-			#titleVersionNumber {
-				position: fixed; 
-				text-align: center; 
-				left: 5px; 
-				top: 5px; 
-				color: var(--text-main-L-col); 
-			}
-
-			#settingsInfo {
-				position: fixed;
-				font-size: 30px;
-				width: 100%;
-				text-align: center;
-				top: 50%;
-				color: var(--text-main-L-col); 
-			}
-
-			#titleBar {
-				height: 30px;
-				background: var(--menu-col);
-				-webkit-app-region: drag;
-			}
-			#titleBarContainer {
-				position: fixed;
-				top: 5px;
-				text-align: center;
-				width: 100%;
-			}
-
-			#titleBarWindowControlsContainer {
-				position: fixed;
-				right: 0%;
-				-webkit-app-region: no-drag;
-			}
-
 		</style>
 	</head>
 	<body>
-		<div id="titleBar"> <!-- use to define the height of the status bar -->
-			<div id="titleBarContainer"> <!-- use to define the location of the status bar title -->
-				<div id="titleBarName"/>
-			</div>
-			<div id="titleBarWindowControlsContainer">
-				<button id="minimizeButton">
-					<svg preserveAspectRatio="none" viewBox="0 0 24 24">
-						<use href="#icon_controls_min">
-					</svg>
-				</button>
-				<button id="minMaxButton">
-					<svg preserveAspectRatio="none" viewBox="0 0 24 24">
-						<use href="#icon_controls_min_max">
-					</svg>
-				</button>
-				<button id="closeButton">
-					<svg preserveAspectRatio="none" viewBox="0 0 24 24">
-						<use href="#icon_controls_close_program">
-					</svg>
-				</button>
-			</div>
-		</div>
 		<div id="dragdropDiv"></div><span id="dragdropSpan">Drop to add file(s)</span>
 		<div id="analyserContainer">
 			<div id="gamesSidebar">
@@ -670,14 +563,13 @@
 					<use href="#icon_close">
 				</svg>
 			</div>
-			<div id="settingsInfo">Nothing here at the moment</div>
-			<div id="versionNumber">0.0.0</div>
+			<div id="settingsInfo"
+			     style="position: fixed; font-size: 30px; width: 100%; text-align: center; top: 50%; color: white;">Nothing here at the moment
+			</div>
+			<div id="versionNumber" style="position: fixed; text-align: center; right: 5px; bottom: 0px; color: var(--text-main-L-col); display: inline-block">0.0.0</div>
 		</div>
 		<svg>
 			<defs>
-				<path id="icon_controls_min_max" d="M18 4H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H6V6h12v12z"></path>
-				<path id="icon_controls_min" d="M19 13H5v-2h14v2z"></path>
-				<path id="icon_controls_close_program" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
 				<path id="icon_dropDown" d="M7 10l5 5 5-5z"></path>
 				<path id="icon_dropUp" d="M7 14l5-5 5 5z"></path>
 				<path id="icon_delete" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19C6,20.1 6.9,21 8,21H16C17.1,21 18,20.1 18,19V7H6V19Z"></path>
