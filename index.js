@@ -4,7 +4,7 @@
 // Good luck brave warrior
 
 // options variable for later on
-var options = {
+let options = {
 	gameLabel: true
 };
 
@@ -13,9 +13,8 @@ const analyser                         = require('./analyser.js');
 const gui                              = require('./gui.js');
 
 // Dependencies, sorted in decending order of line length because it looks neater
-const winscreen                        = require('electron').remote.screen;
 const xml2js                           = require('xml2js').parseString;
-const { dialog }                       = require('electron').remote;
+const { dialog, screen }               = require('electron').remote;
 const { shell, ipcRenderer, webFrame } = require('electron');
 const request                          = require('request');
 const semVer                           = require('semver');
@@ -24,78 +23,95 @@ const fs                               = require('fs');
 
 const saveLocation = process.env.APPDATA + "\\splitsAnalyser\\";
 
-// Version
-const version = "0.4.1";
-d3.select("#versionNumber").text(version); //set the version text to the correct number
-
-// Set window title
-document.title = `SplitsAnalyser v${version}`;
 
 // Speedrun.com api results stored in here. Only updated on program launch.
-var src = {};
+let src = {};
 
-// Variables for keeping track of which tabs are currently selected on the left side menu
-var split_HasFocus = null;
-var game_HasFocus = null;
-
-// Keep track of what split sorting method is used
-var currSort = null;
-
-// Stores last selected split per game
-var split_lastFocus = {};
-
-// Keep track of current window location and size
-var winBounds = {};
+// Object to keep track of focused splits, games, split sorting method & windowbounds
+let programState = {
+	gameFocus: null,
+	splitFocus: null,
+	splitFocusPrev: null,
+	sortingMethod: null,
+	windowBounds: {}
+};
 
 // Main object in which the splits are stored
-var splits = {};
+let splits = {};
 
-// Making the graph building function globally accessible
-// Should probably not do this but I haven't looked into another way of having it accessible to the pb only button yet.
-var buildGraph;
+// Executed when everything is loaded
+function startup() {
+	initDragDrop();
+	checkVersion();
+	loadSplits();
+}
 
-// drag drop importing
-let dragdropDiv = document.getElementById("dragdropDiv");
+function checkVersion() {
+	const version = "0.5.0";
+	d3.select("#versionNumber").text(version); //set the version text to the correct number
+	document.title = `SplitsAnalyser v${version}`;
 
-// Make the dragdrop elements do their stuff when dragging a file over the window
-document.ondragover = (event) => {
-	d3.select("#dragdropSpan").style("opacity", "1");
-	d3.select("#dragdropDiv").style("opacity", "0.8")
-		.style("pointer-events", "all");
-	event.preventDefault();
-};
-
-// Return dragdrop elements to normal after leaving window
-dragdropDiv.ondragleave = (event) => {
-	d3.select("#dragdropSpan").style("opacity", "0");
-	d3.select("#dragdropDiv").style("opacity", "0")
-		.style("pointer-events", "none");
-	event.preventDefault();
-};
-
-// Import the files when they're dropped in the window
-dragdropDiv.ondrop = (event) => {
-	event.preventDefault();
-	d3.select("#dragdropSpan").style("opacity", "0");
-	d3.select("#dragdropDiv").style("opacity", "0")
-		.style("pointer-events", "none");
-	
-	for (let i of event.dataTransfer.files) {
-		if (i.path.endsWith(".lss")) {
-			importSplitFile(i.path);
+	request({
+		url: "https://api.github.com/repos/noahkra/splitsAnalyser/releases",
+		headers: {
+			"User-Agent": "SplitsAnalyser"
 		}
-	}
+	}, function(error, response, body) {
+		if (error) { throw error; }
+		console.log(response);
+		body = JSON.parse(body);
+		if (semVer.gt(semVer.valid(body[0].tag_name), version)) {
+			if (window.confirm("A new version of SplitsAnalyser (" + body[0].tag_name + ") is available on GitHub.\n\nPress OK to go to the download page or Cancel to continue to the program.")) {
+				shell.openExternal(body[0].html_url);
+			}
+		}
+	});
+}
 
-};
+function initDragDrop() {
+	// drag drop importing
+	let dragdropDiv = d3.select("#dragdropDiv").node();
+
+	// Make the dragdrop elements do their stuff when dragging a file over the window
+	document.ondragover = (event) => {
+		d3.select("#dragdropSpan").style("opacity", "1");
+		d3.select("#dragdropDiv").style("opacity", "0.8")
+			.style("pointer-events", "all");
+		event.preventDefault();
+	};
+
+	// Return dragdrop elements to normal after leaving window
+	dragdropDiv.ondragleave = (event) => {
+		d3.select("#dragdropSpan").style("opacity", "0");
+		d3.select("#dragdropDiv").style("opacity", "0")
+			.style("pointer-events", "none");
+		event.preventDefault();
+	};
+
+	// Import the files when they're dropped in the window
+	dragdropDiv.ondrop = (event) => {
+		event.preventDefault();
+		d3.select("#dragdropSpan").style("opacity", "0");
+		d3.select("#dragdropDiv").style("opacity", "0")
+			.style("pointer-events", "none");
+		
+		for (let i of event.dataTransfer.files) {
+			if (i.path.endsWith(".lss")) {
+				importSplitFile(i.path);
+			}
+		}
+
+	};
+}
 
 // handle new window bounds when window is changed and main process sends over getbounds event.
 ipcRenderer.on('getBounds', (event, arg) => {
-	if (winscreen.getDisplayNearestPoint({x: arg.x + 8, y: arg.y + 8}).workAreaSize.width < 1920) {
-		webFrame.setZoomFactor(winscreen.getDisplayNearestPoint({x: arg.x + 8, y: arg.y + 8}).workAreaSize.width / 1920);
+	if (screen.getDisplayNearestPoint({x: arg.x + 8, y: arg.y + 8}).workAreaSize.width < 1920) {
+		webFrame.setZoomFactor(screen.getDisplayNearestPoint({x: arg.x + 8, y: arg.y + 8}).workAreaSize.width / 1920);
 	} else {
 		webFrame.setZoomFactor(1);
 	}
-	winBounds = arg;
+	programState.windowBounds = arg;
 	saveProgramState();
 });
 
@@ -161,7 +177,7 @@ window.addEventListener('keyup', (event) => {
 		break;
 
 		case "c":
-			for (let i = 0; i < Object.keys(splits[game_HasFocus].runs[split_HasFocus.substring(split_HasFocus.indexOf("_") + 1)].segments).length; i++) {
+			for (let i = 0; i < Object.keys(splits[programState.gameFocus].runs[programState.splitFocus.substring(programState.splitFocus.indexOf("_") + 1)].segments).length; i++) {
 				d3.select(".th" + i).node().onclick();
 			}
 		break;
@@ -188,10 +204,10 @@ function deleteSplit(split, game, preconfirm = false) {
 	if (!Object.keys(splits[game].runs).length) {
 		delete splits[game];
 		gui.removeGame(game);
-		game_HasFocus = null;
+		programState.gameFocus = null;
 		gameMenu(null);
 	}
-	refreshSplitsList(currSort);
+	refreshSplitsList(programState.sortingMethod);
 	saveSplits();
 }
 
@@ -204,18 +220,18 @@ function uploadSplits() {
 
 	if (!path) { return; } // return if open dialog was cancelled.
 
-	for (let i in path) {
-		importSplitFile(path[i]);
+	for (let i of path) {
+		importSplitFile(i);
 	}
 }
 
 
 function splitMenu(select) {
-	if (!select || select === split_HasFocus) {
+	if (!select || select === programState.splitFocus) {
 		if (select) {
 			d3.select("#" + select).attr("class", "split splitInactive");
 		}
-		split_HasFocus = null;
+		programState.splitFocus = null;
 		analysis(null);
 		return;
 	}
@@ -229,8 +245,8 @@ function splitMenu(select) {
 	}
 
 	d3.select("#" + select).attr("class", "split splitActive");
-	d3.select("#" + split_HasFocus).attr("class", "split splitInactive");
-	split_HasFocus = select;
+	d3.select("#" + programState.splitFocus).attr("class", "split splitInactive");
+	programState.splitFocus = select;
 	analysis(select);
 	saveProgramState();
 }
@@ -270,80 +286,62 @@ function splitsSortBy(sort) {
 }
 
 function refreshSplitsList(sortBy) {
-	if (!game_HasFocus) {
+	if (!programState.gameFocus) {
 			d3.select("#splitsList").transition().duration(150).ease(d3.easeLinear).style("opacity", "0");
 			d3.select("#selectAGame").transition().duration(70).ease(d3.easeLinear).style("opacity", "1");
 	} else {
 		if (!sortBy) { sortBy = "ByName"; }
-		currSort = sortBy;
+		programState.sortingMethod = sortBy;
 		d3.select("#sortedBy").text(sortBy.replace("By", ""));
 
 		d3.select("#selectAGame").transition().duration(70).ease(d3.easeLinear).style("opacity", "0");
 		d3.select("#splitsList").html("");
-		let runs = Object.entries(splits[game_HasFocus].runs).sort(splitsSortBy(sortBy));
+		let runs = Object.entries(splits[programState.gameFocus].runs).sort(splitsSortBy(sortBy));
 
-		for (let i in runs) {
+		for (let run of runs) {
 			let split = d3.select("#splitsList")
-				.append("div").attr("class", "split splitInactive").attr("onclick", `splitMenu('${game_HasFocus.toLowerCase()}_${runs[i][0]}')`).attr("id", game_HasFocus.toLowerCase() + "_" + runs[i][0]);
-			split.append("span").text(runs[i][1].name).attr("class", "splitName")
-				.attr("onclick", "renameSplit(" + runs[i][0] + ", '" + game_HasFocus + "')")
+				.append("div").attr("class", "split splitInactive").attr("onclick", `splitMenu('${programState.gameFocus.toLowerCase()}_${run[0]}')`).attr("id", programState.gameFocus.toLowerCase() + "_" + run[0]);
+			split.append("span").text(run[1].name).attr("class", "splitName")
+				.attr("onclick", "renameSplit(" + run[0] + ", '" + programState.gameFocus + "')")
 				.attr("title", "Rename split"); // Name
 			let svg = split.append("svg").attr("class", "icon")
 				.attr("preserveAspectRatio", "none")
 				.attr("viewBox", "0 0 24 24");
 			svg.append("title").text("Delete split");
-			svg.append("use").attr("href", "#icon_delete").attr("onclick", "deleteSplit(" + runs[i][0] + ", '" + game_HasFocus + "')");
-			if (runs[i][1].new) {
+			svg.append("use").attr("href", "#icon_delete").attr("onclick", "deleteSplit(" + run[0] + ", '" + programState.gameFocus + "')");
+			if (run[1].new) {
 				split.append("span").text("NEW").attr("class", "new");
 			}
-			split.append("span").text(runs[i][1].category).attr("class", "splitCategory"); // category
-			split.append("span").text(runs[i][1].file).attr("class", "splitFile"); // File name
-			split.append("span").text(analyser.timeFormat(runs[i][1].pb[0])).attr("class", "splitTime"); // pb time
-			// split.append("span").text(splits[game_HasFocus].runs[i].avgstddev).attr("class", "splitTimeDev");
+			split.append("span").text(run[1].category).attr("class", "splitCategory"); // category
+			split.append("span").text(run[1].file).attr("class", "splitFile"); // File name
+			split.append("span").text(analyser.timeFormat(run[1].pb[0])).attr("class", "splitTime"); // pb time
+			// split.append("span").text(splits[programState.gameFocus].run.avgstddev).attr("class", "splitTimeDev");
 		}
 		d3.select("#splitsList").transition().duration(150).ease(d3.easeLinear).style("opacity", "1");
-		d3.select("#" + split_HasFocus).attr("class", "split splitActive");
+		d3.select("#" + programState.splitFocus).attr("class", "split splitActive");
 	}
 }
 
 function gameMenu(select) {
 	analysis(null);
 	if (select) {
-		split_lastFocus[game_HasFocus] = split_HasFocus;
+		programState.splitFocusPrev[programState.gameFocus] = programState.splitFocus;
 	}
-	if (!select || select === game_HasFocus) {
+	if (!select || select === programState.gameFocus) {
 		if (select) {	
 			d3.select("#" + select).select("img").attr("class", "gameInactive");
 		}
-		game_HasFocus = null;
-		splitMenu(split_HasFocus);
-		refreshSplitsList(currSort);
+		programState.gameFocus = null;
+		splitMenu(programState.splitFocus);
+		refreshSplitsList(programState.sortingMethod);
 		return;
 	}
 	d3.select("#" + select).select("img").attr("class", "gameActive");
-	d3.select("#" + game_HasFocus).select("img").attr("class", "gameInactive");
-	game_HasFocus = select;
-	refreshSplitsList(currSort);
-	splitMenu(split_lastFocus[select]);
+	d3.select("#" + programState.gameFocus).select("img").attr("class", "gameInactive");
+	programState.gameFocus = select;
+	refreshSplitsList(programState.sortingMethod);
+	splitMenu(programState.splitFocusPrev[select]);
 	saveProgramState();
-}
-
-function checkVersion() {
-	request({
-		url: "https://api.github.com/repos/noahkra/splitsAnalyser/releases",
-		headers: {
-			"User-Agent": "SplitsAnalyser"
-		}
-	}, function(error, response, body) {
-		if (error) { throw error; }
-		console.log(response);
-		body = JSON.parse(body);
-		if (semVer.gt(semVer.valid(body[0].tag_name), version)) {
-			if (window.confirm("A new version of SplitsAnalyser (" + body[0].tag_name + ") is available on GitHub.\n\nPress OK to go to the download page or Cancel to continue to the program.")) {
-				shell.openExternal(body[0].html_url);
-			}
-		}
-	});
 }
 
 function loadSplits() {
@@ -358,8 +356,8 @@ function loadSplits() {
  			if (err) { throw err; }
  			splits = JSON.parse(data);
 			
-			for (let i in Object.keys(splits)) {
-				gui.addGame(Object.keys(splits)[i], splits[Object.keys(splits)[i]].metadata.cover, options);
+			for (let splitKey of Object.keys(splits)) {
+				gui.addGame(splitKey, splits[splitKey].metadata.cover, options);
 			}
 
 			loadProgramState();
@@ -383,7 +381,6 @@ function importSplitFile(file) {
 			let gameName = result.Run.GameName.trim().toLowerCase().replace(/( )/g, "-"); // Variable for the game name which is used throughout this function
 				request({ url: `https://www.speedrun.com/api/v1/games?name=${gameName.replace(/(-)/g, "%20")}` }, function(error, response, body) {
 					try {
-						console.log(result);
 						if (body.startsWith("<")) {
 							throw "Can't reach speedrun.com API. Please try again later.";
 						}
@@ -397,9 +394,7 @@ function importSplitFile(file) {
 								"runs": {}
 							};
 
-							
-						gui.addGame(gameName, splits[gameName].metadata.cover, options);
-							
+							gui.addGame(gameName, splits[gameName].metadata.cover, options);
 						}
 
 						let curRun = 0;
@@ -428,9 +423,9 @@ function importSplitFile(file) {
 
 						let attempts = convertToSingleArray(result.Run.AttemptHistory.Attempt);
 					
-						for (let i in attempts) {
-							if (attempts[i].RealTime) {
-								splits[gameName].runs[curRun].succesfulAttempts[attempts[i].$.id] = attempts[i].RealTime;
+						for (let attempt of attempts) {
+							if (attempt.RealTime) {
+								splits[gameName].runs[curRun].succesfulAttempts[attempt.$.id] = attempt.RealTime;
 							}
 						}
 
@@ -453,16 +448,16 @@ function importSplitFile(file) {
 
 						let segments = result.Run.Segments.Segment;
 
-						for (let i in segments) {
+						for (let segment of segments) {
 
 							let isSubsplit = false;
-							if (segments[i].Name.startsWith("-") || segments[i].Name.startsWith("{")) { isSubsplit = true; }
+							if (segment.Name.startsWith("-") || segment.Name.startsWith("{")) { isSubsplit = true; }
 
-							let segmentName = i + "_" + segments[i].Name; // Set up the segment name
+							let segmentName = segments.indexOf(segment) + "_" + segment.Name; // Set up the segment name
 
-							let segmentTimes = convertToSingleArray(segments[i].SegmentHistory.Time);
+							let segmentTimes = convertToSingleArray(segment.SegmentHistory.Time);
 
-							let splitTimes = convertToSingleArray(segments[i].SplitTimes.SplitTime);
+							let splitTimes = convertToSingleArray(segment.SplitTimes.SplitTime);
 
 							let curTime;
 
@@ -471,25 +466,25 @@ function importSplitFile(file) {
 							}
 
 							// Set up the new nested objects
-							if (!parseInt(i)) {
+							if (segments.indexOf(segment)) {
 								splits[gameName].runs[curRun].pbSegments.tmp = {};
 								splits[gameName].runs[curRun].segments.tmp = {};
 								splits[gameName].runs[curRun].stddevSegments.tmp = {};
 								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
 							} else {
 								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) - 
-									analyser.time2ms(convertToSingleArray(segments[parseInt(i) - 1].SplitTimes.SplitTime)[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
+									analyser.time2ms(convertToSingleArray(segments[segments.indexOf(segment) - 1].SplitTimes.SplitTime)[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
 							}
 
 							// storing pb seperately
 							if (isSubsplit) {
 								// subsplits
-								if (segments[i].Name.startsWith("-")) {
+								if (segment.Name.startsWith("-")) {
 									splits[gameName].runs[curRun].pbSegments.tmp[segmentName.replace("-", "")] = curTime;
 									
 								}
 								// final subsplit
-								if (segments[i].Name.startsWith("{")) {
+								if (segment.Name.startsWith("{")) {
 									let curSubsplit = Object.keys(splits[gameName].runs[curRun].pbSegments).length-1;
 									splits[gameName].runs[curRun].pbSegments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = curTime;
 									splits[gameName].runs[curRun].pbSegments["sub" + (parseInt(curSubsplit) + 1) + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].pbSegments.tmp;
@@ -499,25 +494,25 @@ function importSplitFile(file) {
 								splits[gameName].runs[curRun].pbSegments[segmentName] = curTime;
 							}
 
-							for (let j in segmentTimes) {
-								if (segmentTimes[j].RealTime) {
-									let runID = segmentTimes[j].$.id;
+							for (let time of segmentTimes) {
+								if (time.RealTime) {
+									let runID = time.$.id;
 									// every run is stored in here, including the pb
 									if (isSubsplit) {
 										// subsplits
-										if (segments[i].Name.startsWith("-")) {
+										if (segment.Name.startsWith("-")) {
 											if (!splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")]) { splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")] = {}; }
-											splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")][runID] = analyser.time2ms(segmentTimes[j].RealTime);
+											splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")][runID] = analyser.time2ms(time.RealTime);
 
 
 										}
 										// final subsplit
-										if (segments[i].Name.startsWith("{")) {
+										if (segment.Name.startsWith("{")) {
 											let curSubsplit = Object.keys(splits[gameName].runs[curRun].segments).length;
 											if (!splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)]) { 
 												splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = {}; 
 											}
-											splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)][runID] = analyser.time2ms(segmentTimes[j].RealTime);
+											splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)][runID] = analyser.time2ms(time.RealTime);
 
 											if (parseInt(j) === segmentTimes.length - 1) {
 												splits[gameName].runs[curRun].segments["sub" + curSubsplit + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].segments.tmp;
@@ -526,7 +521,7 @@ function importSplitFile(file) {
 										}
 									} else {
 										if (!splits[gameName].runs[curRun].segments[segmentName]) { splits[gameName].runs[curRun].segments[segmentName] = {}; }
-										splits[gameName].runs[curRun].segments[segmentName][runID] = analyser.time2ms(segmentTimes[j].RealTime);
+										splits[gameName].runs[curRun].segments[segmentName][runID] = analyser.time2ms(time.RealTime);
 									}
 								}
 							}
@@ -535,11 +530,11 @@ function importSplitFile(file) {
 							// Standard deviation
 							if (isSubsplit) {
 								// subsplits
-								if (segments[i].Name.startsWith("-")) {
+								if (segment.Name.startsWith("-")) {
 									splits[gameName].runs[curRun].stddevSegments.tmp[segmentName.replace("-", "")] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
 								}
 								// final subsplit
-								if (segments[i].Name.startsWith("{")) {
+								if (segment.Name.startsWith("{")) {
 									let curSubsplit = Object.keys(splits[gameName].runs[curRun].stddevSegments).length-1;
 									splits[gameName].runs[curRun].stddevSegments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
 									splits[gameName].runs[curRun].stddevSegments["sub" + (parseInt(curSubsplit) + 1) + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].stddevSegments.tmp;
@@ -558,13 +553,14 @@ function importSplitFile(file) {
 
 						// warning proceed with caution. Do not try to comprehend the kraken of code underneath this comment. it took me several hours to figure out
 
-						for (let i in segments) {
-							curbests[i + "_" + segments[i].Name] = Number.MAX_SAFE_INTEGER;
-							let segmentTimes = convertToSingleArray(segments[i].SegmentHistory.Time);
-							for (let j in segmentTimes) {
-								if (!idmap[segmentTimes[j].$.id]) { idmap[segmentTimes[j].$.id] = []; }
-								if (!idmap[segmentTimes[j].$.id].includes(i) && parseInt(segmentTimes[j].$.id) >= 0) {									
-									idmap[segmentTimes[j].$.id].push(i);
+						for (let segment of segments) {
+							let i = segments.indexOf(segment);
+							curbests[i + "_" + segment.Name] = Number.MAX_SAFE_INTEGER;
+							let segmentTimes = convertToSingleArray(segment.SegmentHistory.Time);
+							for (let time of segmentTimes) {
+								if (!idmap[time.$.id]) { idmap[time.$.id] = []; }
+								if (!idmap[time.$.id].includes(i) && parseInt(time.$.id) >= 0) {									
+									idmap[time.$.id].push(i);
 								}
 							}
 						}
@@ -596,11 +592,11 @@ function importSplitFile(file) {
 						delete splits[gameName].runs[curRun].pbSegments.tmp;
 						delete splits[gameName].runs[curRun].segments.tmp;
 						delete splits[gameName].runs[curRun].stddevSegments.tmp;
-						if (game_HasFocus !== gameName) {
+						if (programState.gameFocus !== gameName) {
 							gameMenu(gameName);
 						}
 						srcRefresh();
-						refreshSplitsList(currSort);
+						refreshSplitsList(programState.sortingMethod);
 						splitMenu(gameName + "_" + curRun);
 						saveSplits();
 					} catch (e) {
@@ -624,7 +620,7 @@ function analysis(splitselect) {
 	}
 
 	d3.select("#analysisArea").html("");
-	var split = splits[splitselect.substring(0, splitselect.indexOf("_"))].runs[splitselect.substring(splitselect.indexOf("_") + 1)];
+	let split = splits[splitselect.substring(0, splitselect.indexOf("_"))].runs[splitselect.substring(splitselect.indexOf("_") + 1)];
 
 	// put the wr run into a variable
 
@@ -634,18 +630,18 @@ function analysis(splitselect) {
 		tr.append("th");
 		tr = srcTable.append("tr").attr("class", "splitstablerow");
 		let wr;
-	if (src[game_HasFocus].records) {
-		if (src[game_HasFocus].levels.data.find(a => getLevDistance(a.name, split.name) >= 0.3)) {
-			wr = src[game_HasFocus].records.data.filter(
-					a => a.category === src[game_HasFocus].categories.data.filter(
+	if (src[programState.gameFocus].records) {
+		if (src[programState.gameFocus].levels.data.find(a => getLevDistance(a.name, split.name) >= 0.3)) {
+			wr = src[programState.gameFocus].records.data.filter(
+					a => a.category === src[programState.gameFocus].categories.data.filter(
 						a => a.type === "per-level").find(a => getLevDistance(a.name, split.category) >= 0.9).id)
 				.find(
-					a => a.level === src[game_HasFocus].levels.data.find(
+					a => a.level === src[programState.gameFocus].levels.data.find(
 						a => getLevDistance(a.name, split.name) >= 0.3).id)
 				.runs[0].run;
 		} else {
-			wr = src[game_HasFocus].records.data.filter(
-					a => a.category === src[game_HasFocus].categories.data.filter(
+			wr = src[programState.gameFocus].records.data.filter(
+					a => a.category === src[programState.gameFocus].categories.data.filter(
 						a => a.type === "per-game").find(a => getLevDistance(a.name, split.category) >= 0.9).id)
 			[0].runs[0].run;
 		}
@@ -701,11 +697,12 @@ function analysis(splitselect) {
 
 	segmentsTable = d3.select("#segmentsTable").append("tbody");
 
-	for (let i in splitKeys) {
-		if (splitKeys[i].startsWith("sub")) { // checking if it's a subsplit
+	for (let key of splitKeys) {
+		let i = splitKeys.indexOf(key);
+		if (key.startsWith("sub")) { // checking if it's a subsplit
 			tr = segmentsTable.append("tr").attr("class", "tablesubsplitheader");
 			tr.append("th").attr("class", "tableSubsplit th" + i)
-					.text(splitKeys[i].substring(splitKeys[i].indexOf("_") + 1)).attr("colspan", "5")
+					.text(key.substring(key.indexOf("_") + 1)).attr("colspan", "5")
 					.attr("onclick", "gui.collapseSeg('" + i + "')")
 					.attr("title", "Collapse segment")
 				.append("svg")
@@ -715,181 +712,183 @@ function analysis(splitselect) {
 					.attr("class", "dropDown")
 				.append("use")
 					.attr("href", "#icon_dropUp");
-			let subSplitKeys = Object.keys(split.segments[splitKeys[i]]);
-			for (let j in subSplitKeys) {
+			let subSplitKeys = Object.keys(split.segments[key]);
+			for (let subkey of subSplitKeys) {
 				tr = segmentsTable.append("tr").attr("class", "tableRow tr" + i);
-				if (Object.values(split.pbSegments)[i][subSplitKeys[j]] - d3.min(Object.entries(split.segments[splitKeys[i]][subSplitKeys[j]]).map( d => { return d[1]; })) === 0) {
+				if (Object.values(split.pbSegments)[i][subkey] - d3.min(Object.entries(split.segments[key][subkey]).map( d => { return d[1]; })) === 0) {
 					tr.attr("class", "tableRow tr" + i + " gold");
 				}
-				tr.append("td").text(subSplitKeys[j].substring(subSplitKeys[j].indexOf("_") + 1));
-				tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i][subSplitKeys[j]])).attr("class", "tableNumerical");
-				tr.append("td").text(analyser.timeFormat(d3.min(Object.entries(split.segments[splitKeys[i]][subSplitKeys[j]]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
-				tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i][subSplitKeys[j]] - d3.min(Object.entries(split.segments[splitKeys[i]][subSplitKeys[j]]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
-				tr.append("td").text(analyser.timeFormat(Object.values(split.stddevSegments)[i][subSplitKeys[j]])).attr("class", "tableNumerical");
+				tr.append("td").text(subkey.substring(subkey.indexOf("_") + 1));
+				tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i][subkey])).attr("class", "tableNumerical");
+				tr.append("td").text(analyser.timeFormat(d3.min(Object.entries(split.segments[key][subkey]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
+				tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i][subkey] - d3.min(Object.entries(split.segments[key][subkey]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
+				tr.append("td").text(analyser.timeFormat(Object.values(split.stddevSegments)[i][subkey])).attr("class", "tableNumerical");
 			}
 
 		} else {
 			tr = segmentsTable.append("tr").attr("class", "tableRow");
-			if (Object.values(split.pbSegments)[i] - d3.min(Object.entries(split.segments[splitKeys[i]]).map( d => { return d[1]; })) === 0) {
+			if (Object.values(split.pbSegments)[i] - d3.min(Object.entries(split.segments[key]).map( d => { return d[1]; })) === 0) {
 				tr.attr("class", "tableRow gold");
 			}
-			tr.append("td").text(splitKeys[i].substring(splitKeys[i].indexOf("_") + 1));
+			tr.append("td").text(key.substring(key.indexOf("_") + 1));
 			tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i])).attr("class", "tableNumerical");
-			tr.append("td").text(analyser.timeFormat(d3.min(Object.entries(split.segments[splitKeys[i]]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
-			tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i] - d3.min(Object.entries(split.segments[splitKeys[i]]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
+			tr.append("td").text(analyser.timeFormat(d3.min(Object.entries(split.segments[key]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
+			tr.append("td").text(analyser.timeFormat(Object.values(split.pbSegments)[i] - d3.min(Object.entries(split.segments[key]).map( d => { return d[1]; })))).attr("class", "tableNumerical");
 			tr.append("td").text(analyser.timeFormat(Object.values(split.stddevSegments)[i])).attr("class", "tableNumerical");
 		}
 	}
 
-	buildGraph = function(pbonly) {
-		d3.select("#splitsGraphDiv").remove();
-		let margin = {top: 30, right: 30, bottom: 60, left: 90},
-		width      = 800 - margin.left - margin.right,
-		height     = 400 - margin.top - margin.bottom;
-
-
-		let dat  = [];
-		let prev = 99999999999;
-
-		//pb only
-		for (let i in split.succesfulAttempts) {
-			if (analyser.time2ms(split.succesfulAttempts[i]) < prev || !pbonly) {
-				dat.push({"x": i, "y": analyser.time2ms(split.succesfulAttempts[i])});
-				prev = analyser.time2ms(split.succesfulAttempts[i]);
-			}
-		}
-
-		let dat2 = [];
-		let tot = 0;
-		for (let i in dat) {
-			tot += parseInt(dat[i].y);
-			dat2.push({"x": dat[i].x, "y": parseInt((tot/(parseInt(i)+1)).toFixed())});
-		}
-
-		let dat3 = [];
-		for (let i in split.sob) {
-			if (parseInt(i) < 0 || parseInt(split.sob[i]) < 0) { continue; }
-			dat3.push({"x": i, "y": split.sob[i]});
-		}
-
-		var svgdiv = d3.select("#analysisArea").append("div").attr("id", "splitsGraphDiv");
-
-		var svg = svgdiv.append("svg")
-			.attr("width", width + margin.left + margin.right)
-			.attr("height", height + margin.top + margin.bottom)
-			.attr("id", "splitsGraph")
-			.append("g")
-			.attr("transform",
-			      "translate(" + margin.left + "," + margin.top + ")");
-
-		var x = d3.scaleLinear()
-			.domain([0, d3.max(dat.concat(dat2, dat3), d => { return parseInt(d.x); })])
-			.range([0, width]).nice();
-		svg.append("g")
-			.attr("transform", "translate(0, " + height + ")")
-			.call(d3.axisBottom(x));
-		var y = d3.scaleLinear()
-			.domain([new Date(d3.min(dat.concat(dat2, dat3), d => { return d.y; })), new Date(d3.max(dat.concat(dat2, dat3), d => { return d.y; }))])
-			.range([height, 0]).nice();
-		svg.append("g")
-			.call(d3.axisLeft(y)
-			.tickFormat(d => { return analyser.timeFormat(d); })
-			);
-
-		svg.append("path")
-			.datum(dat)
-			.attr("fill", "none")
-			.attr("stroke", "steelblue")
-			.attr("class", "runs")
-			.attr("stroke-width", 1.5)
-			.attr("d", d3.line()
-				.curve(d3.curveMonotoneX)
-				.x(function(d) { return x(d.x); })
-				.y(function(d) { return y(d.y); })
-			);
-
-		svg.append("path")
-			.datum(dat2)
-			.attr("fill", "none")
-			.attr("stroke", "green")
-			.attr("class", "averageRuns")
-			.attr("stroke-width", 1.5)
-			.attr("d", d3.line()
-				.curve(d3.curveMonotoneX)
-				.x(function(d) { return x(d.x); })
-				.y(function(d) { return y(d.y); })
-			);
-
-		svg.append("path")
-			.datum(dat3)
-			.attr("fill", "none")
-			.attr("stroke", "orange")
-			.attr("class", "SOB")
-			.attr("stroke-width", 1.5)
-			.attr("d", d3.line()
-				.curve(d3.curveStepAfter)
-				.x(function(d) { return x(d.x); })
-				.y(function(d) { return y(d.y); })
-			);
-
-		// Chart Title
-		svg.append("text")
-			.attr("x", (width / 2))
-			.attr("y", 10 - (margin.top / 2))
-			.attr("text-anchor", "middle")
-			.style("font-size", "16px")
-			.style("fill", "white")
-			.text("Duration over Attempts");
-
-		// Y axis title
-		svg.append("text")
-			.attr("transform", "rotate(-90)")
-			.attr("y", 10 - margin.left)
-			.attr("x", 0 - (height / 2))
-			.attr("dy", "1em")
-			.style("text-anchor", "middle")
-			.style("fill", "white")
-			.text("Duration");
-
-		// X axis title
-		svg.append("text")
-			.attr("transform", 
-				"translate(" + (width / 2) + ", " + (height + margin.top + 10) + ")")
-			.style("text-anchor", "middle")
-			.style("fill", "white")
-			.text("Attempts");
-
-		// LEGEND
-		let ordinal = d3.scaleOrdinal()
-			.domain(["Runs", "Average of Runs", "SOB"])
-			.range(["steelblue", "green", "orange"]);
-
-		svg.append("g")
-			.attr("class", "legend")
-			.attr("transform", "translate(" + (width - 120) + ", 20)");
-
-		let legendOrdinal = d3.legendColor()
-			.shape("circle")
-			.shapePadding(10)
-			.labelAlign("end")
-			.shapeRadius(5)
-			.cellFilter(function(d){ return d.label !== "e"; })
-			.scale(ordinal);
-			// .on("cellclick", (d) => {
-			// 	console.log(d)
-			// 	d3.select("." + d.replace(" ", "")).remove();
-			// 	// d3.selectAll(".cell").selectAll(".label").filter((d) => { return d3.select(this).text() === d}).style("fill", "grey").node().parentNode.select("circle").style("fill", "grey");
-			// });
-
-		svg.select(".legend")
-			.call(legendOrdinal);
-
-
-		svgdiv.append("div").attr("id", "splitsGraphSet")
-			.append("input").attr("type", "button").attr("onclick", `buildGraph(${!pbonly})`).attr("value", `Show ${pbonly ? "All" : "PBs Only"}`);
-	};
 
 	buildGraph(false);
+}
+
+function buildGraph(pbonly) {
+	d3.select("#splitsGraphDiv").remove();
+	let margin = {top: 30, right: 30, bottom: 60, left: 90},
+		width  = 800 - margin.left - margin.right,
+		height = 400 - margin.top - margin.bottom;
+
+
+	let dat  = [];
+	let prev = 99999999999;
+
+	//pb only
+	for (let attempt of split.succesfulAttempts) {
+		if (analyser.time2ms(attempt) < prev || !pbonly) {
+			dat.push({"x": i, "y": analyser.time2ms(attempt)});
+			prev = analyser.time2ms(attempt);
+		}
+	}
+
+	let dat2 = [];
+	let tot = 0;
+	dat.forEach((v, i) => {
+		tot += parseInt(v.y);
+		dat2.push({"x": v.x, "y": parseInt((tot / (i + 1)).toFixed())});
+	});
+
+	let dat3 = [];
+	split.sob.forEach((v, i) => {
+		if (i > 0 && parseInt(v) > 0) {
+			dat3.push({"x": i, "y": v});
+		}
+	});
+
+	let svgdiv = d3.select("#analysisArea").append("div").attr("id", "splitsGraphDiv");
+
+	let svg = svgdiv.append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+		.attr("id", "splitsGraph")
+		.append("g")
+		.attr("transform",
+		      "translate(" + margin.left + "," + margin.top + ")");
+
+	let x = d3.scaleLinear()
+		.domain([0, d3.max(dat.concat(dat2, dat3), d => { return parseInt(d.x); })])
+		.range([0, width]).nice();
+	svg.append("g")
+		.attr("transform", "translate(0, " + height + ")")
+		.call(d3.axisBottom(x));
+	let y = d3.scaleLinear()
+		.domain([new Date(d3.min(dat.concat(dat2, dat3), d => { return d.y; })), new Date(d3.max(dat.concat(dat2, dat3), d => { return d.y; }))])
+		.range([height, 0]).nice();
+	svg.append("g")
+		.call(d3.axisLeft(y)
+		.tickFormat(d => { return analyser.timeFormat(d); })
+		);
+
+	svg.append("path")
+		.datum(dat)
+		.attr("fill", "none")
+		.attr("stroke", "steelblue")
+		.attr("class", "runs")
+		.attr("stroke-width", 1.5)
+		.attr("d", d3.line()
+			.curve(d3.curveMonotoneX)
+			.x(function(d) { return x(d.x); })
+			.y(function(d) { return y(d.y); })
+		);
+
+	svg.append("path")
+		.datum(dat2)
+		.attr("fill", "none")
+		.attr("stroke", "green")
+		.attr("class", "averageRuns")
+		.attr("stroke-width", 1.5)
+		.attr("d", d3.line()
+			.curve(d3.curveMonotoneX)
+			.x(function(d) { return x(d.x); })
+			.y(function(d) { return y(d.y); })
+		);
+
+	svg.append("path")
+		.datum(dat3)
+		.attr("fill", "none")
+		.attr("stroke", "orange")
+		.attr("class", "SOB")
+		.attr("stroke-width", 1.5)
+		.attr("d", d3.line()
+			.curve(d3.curveStepAfter)
+			.x(function(d) { return x(d.x); })
+			.y(function(d) { return y(d.y); })
+		);
+
+	// Chart Title
+	svg.append("text")
+		.attr("x", (width / 2))
+		.attr("y", 10 - (margin.top / 2))
+		.attr("text-anchor", "middle")
+		.style("font-size", "16px")
+		.style("fill", "white")
+		.text("Duration over Attempts");
+
+	// Y axis title
+	svg.append("text")
+		.attr("transform", "rotate(-90)")
+		.attr("y", 10 - margin.left)
+		.attr("x", 0 - (height / 2))
+		.attr("dy", "1em")
+		.style("text-anchor", "middle")
+		.style("fill", "white")
+		.text("Duration");
+
+	// X axis title
+	svg.append("text")
+		.attr("transform", 
+			"translate(" + (width / 2) + ", " + (height + margin.top + 10) + ")")
+		.style("text-anchor", "middle")
+		.style("fill", "white")
+		.text("Attempts");
+
+	// LEGEND
+	let ordinal = d3.scaleOrdinal()
+		.domain(["Runs", "Average of Runs", "SOB"])
+		.range(["steelblue", "green", "orange"]);
+
+	svg.append("g")
+		.attr("class", "legend")
+		.attr("transform", "translate(" + (width - 120) + ", 20)");
+
+	let legendOrdinal = d3.legendColor()
+		.shape("circle")
+		.shapePadding(10)
+		.labelAlign("end")
+		.shapeRadius(5)
+		.cellFilter(function(d){ return d.label !== "e"; })
+		.scale(ordinal);
+		// .on("cellclick", (d) => {
+		// 	console.log(d)
+		// 	d3.select("." + d.replace(" ", "")).remove();
+		// 	// d3.selectAll(".cell").selectAll(".label").filter((d) => { return d3.select(this).text() === d}).style("fill", "grey").node().parentNode.select("circle").style("fill", "grey");
+		// });
+
+	svg.select(".legend")
+		.call(legendOrdinal);
+
+
+	svgdiv.append("div").attr("id", "splitsGraphSet")
+		.append("input").attr("type", "button").attr("onclick", `buildGraph(${!pbonly})`).attr("value", `Show ${pbonly ? "All" : "PBs Only"}`);
 }
 
 function saveSplits() {
@@ -903,50 +902,35 @@ function loadProgramState() {
 		fs.mkdir(saveLocation, (err) => { console.log(err); });
 	}
 
-	if (!fs.existsSync(saveLocation + "programstate.json")) { // create splits json if it doesn't exist yet
-		let data = {
-			game_HasFocus: game_HasFocus,
-			split_HasFocus: split_HasFocus,
-			split_lastFocus: split_lastFocus,
-			currSort: currSort,
-			winBounds: winBounds
-		};
+	if (!fs.existsSync(saveLocation + "programState.json")) { // create splits json if it doesn't exist yet
+		let data = programState;
 
-		fs.writeFile(saveLocation + "programstate.json", JSON.stringify(data), (err) => { console.log(err); });
+		fs.writeFile(saveLocation + "programState.json", JSON.stringify(data), (err) => { console.log(err); });
 	} else {
- 		fs.readFile(saveLocation + "programstate.json", (err, data) => { // read in splits json
+ 		fs.readFile(saveLocation + "programState.json", (err, data) => { // read in splits json
  			if (err) { throw err; }
  			data = JSON.parse(data);
 
-			gameMenu(data.game_HasFocus);
-			splitMenu(data.split_HasFocus);
-			split_lastFocus = data.split_lastFocus;
-			currSort = data.currSort;
- 			winBounds = data.winBounds;
+ 			Object.assign(programState, data);
+
+			gameMenu(programState.gameFocus);
+			splitMenu(programState.splitFocus);
  		});
 	}
 }
 
 function saveProgramState() {
-	fs.truncate(saveLocation + "programstate.json", 0, () => {
-		let data = {
-			game_HasFocus: game_HasFocus,
-			split_HasFocus: split_HasFocus,
-			split_lastFocus: split_lastFocus,
-			currSort: currSort,
-			winBounds: winBounds
-		};
-
-		fs.writeFile(saveLocation + "programstate.json", JSON.stringify(data), (err) => { if (err) { throw err; }});
+	fs.truncate(saveLocation + "programState.json", 0, () => {
+		fs.writeFile(saveLocation + "programState.json", JSON.stringify(programState), (err) => { if (err) { throw err; }});
 	});
 }
 
 function checkModifiedSplits() {
-	for (let i in splits) {
-		for (let j in splits[i].runs) {
-			fs.stat(splits[i].runs[j].path, function(err, stats) { 
-				if (stats.mtimeMs > splits[i].runs[j].modified) {
-					reloadSplit(j, i);
+	for (let split of splits) {
+		for (let run of split.runs) {
+			fs.stat(runs.path, function(err, stats) { 
+				if (stats.mtimeMs > run.modified) {
+					reloadSplit(splits.indexOf(split), split.runs.indexOf(run));
 				}
 			});
 		}
@@ -955,10 +939,10 @@ function checkModifiedSplits() {
 
 function reloadSplit(split, game) {
 	if (split === "all") {
-		for (let i in splits) {
-			for (let j in splits[i].runs) {
-				importSplitFile(splits[i].runs[j].path);
-				deleteSplit(j, game, true);
+		for (let split of splits) {
+			for (let run of split.runs) {
+				importSplitFile(run.path);
+				deleteSplit(split.runs.indexOf(run), game, true);
 			}
 		}
 		return;
@@ -1025,8 +1009,8 @@ function srcRefresh() {
 					src[game].categories = JSON.parse(body);
 					request({ url: `${links.find(a => a.rel === "records").uri}?top=1&max=200`}, function(err, response, body) {
 						src[game].records = JSON.parse(body);
-						if (split_HasFocus) {
-							analysis(split_HasFocus);
+						if (programState.splitFocus) {
+							analysis(programState.splitFocus);
 						}
 					});
 				});
@@ -1079,7 +1063,4 @@ function getLevDistance(string, target) { // Function for getting the Levenshtei
 	return (long.length - subCost[short.length]) / parseFloat(long.length);
 }
 
-// Execute first functions after loading up program.
-checkVersion();
-loadSplits();
-
+startup();
