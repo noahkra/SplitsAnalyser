@@ -1,5 +1,4 @@
-const electron = require("electron");
-const { app, BrowserWindow, ipcMain } = electron;
+const { app, BrowserWindow, ipcMain, screen } = require("electron");
 
 let win, splash;
 
@@ -7,14 +6,13 @@ app.commandLine.appendSwitch('high-dpi-support', 'true');
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 
 app.on('ready', () => {
-	const screen = electron.screen;
 	splash = new BrowserWindow({frame: false, width: 256, height: 256});
 	splash.loadFile("splash.html");
 	let programstate = require(process.env.APPDATA + "\\splitsAnalyser\\programstate.json");
 
 	let options = {
 		backgroundColor: '#1A1A1B',
-		icon: "", 
+		icon: "",
 		webPreferences: {
 			webSecurity: true,
 			nodeIntegration: true

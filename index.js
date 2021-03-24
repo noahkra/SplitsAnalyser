@@ -23,7 +23,6 @@ const fs                               = require('fs');
 
 const saveLocation = process.env.APPDATA + "\\splitsAnalyser\\";
 
-
 // Speedrun.com api results stored in here. Only updated on program launch.
 let src = {};
 
@@ -94,7 +93,7 @@ function initDragDrop() {
 		d3.select("#dragdropSpan").style("opacity", "0");
 		d3.select("#dragdropDiv").style("opacity", "0")
 			.style("pointer-events", "none");
-		
+
 		for (let i of event.dataTransfer.files) {
 			if (i.path.endsWith(".lss")) {
 				importSplitFile(i.path);
@@ -117,7 +116,7 @@ ipcRenderer.on('getBounds', (event, arg) => {
 
 // Keyboard shortcuts, woo!
 // Most of these just execute the onclick function of the action the shortcut replaces
-window.addEventListener('keyup', (event) => { 
+window.addEventListener('keyup', (event) => {
 	// console.log(event); // for adding new shortcuts. Uncomment if you want to do that
 	let node;
 
@@ -328,7 +327,7 @@ function gameMenu(select) {
 		programState.splitFocusPrev[programState.gameFocus] = programState.splitFocus;
 	}
 	if (!select || select === programState.gameFocus) {
-		if (select) {	
+		if (select) {
 			d3.select("#" + select).select("img").attr("class", "gameInactive");
 		}
 		programState.gameFocus = null;
@@ -355,7 +354,7 @@ function loadSplits() {
  		fs.readFile(saveLocation + "splits.json", (err, data) => { // read in splits json
  			if (err) { throw err; }
  			splits = JSON.parse(data);
-			
+
 			for (let splitKey of Object.keys(splits)) {
 				gui.addGame(splitKey, splits[splitKey].metadata.cover, options);
 			}
@@ -422,7 +421,7 @@ function importSplitFile(file) {
 						}
 
 						let attempts = convertToSingleArray(result.Run.AttemptHistory.Attempt);
-					
+
 						for (let attempt of attempts) {
 							if (attempt.RealTime) {
 								splits[gameName].runs[curRun].succesfulAttempts[attempt.$.id] = attempt.RealTime;
@@ -472,7 +471,7 @@ function importSplitFile(file) {
 								splits[gameName].runs[curRun].stddevSegments.tmp = {};
 								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
 							} else {
-								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) - 
+								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) -
 									analyser.time2ms(convertToSingleArray(segments[segments.indexOf(segment) - 1].SplitTimes.SplitTime)[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
 							}
 
@@ -481,7 +480,7 @@ function importSplitFile(file) {
 								// subsplits
 								if (segment.Name.startsWith("-")) {
 									splits[gameName].runs[curRun].pbSegments.tmp[segmentName.replace("-", "")] = curTime;
-									
+
 								}
 								// final subsplit
 								if (segment.Name.startsWith("{")) {
@@ -509,8 +508,8 @@ function importSplitFile(file) {
 										// final subsplit
 										if (segment.Name.startsWith("{")) {
 											let curSubsplit = Object.keys(splits[gameName].runs[curRun].segments).length;
-											if (!splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)]) { 
-												splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = {}; 
+											if (!splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)]) {
+												splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = {};
 											}
 											splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)][runID] = analyser.time2ms(time.RealTime);
 
@@ -525,7 +524,7 @@ function importSplitFile(file) {
 									}
 								}
 							}
-							
+
 
 							// Standard deviation
 							if (isSubsplit) {
@@ -559,7 +558,7 @@ function importSplitFile(file) {
 							let segmentTimes = convertToSingleArray(segment.SegmentHistory.Time);
 							for (let time of segmentTimes) {
 								if (!idmap[time.$.id]) { idmap[time.$.id] = []; }
-								if (!idmap[time.$.id].includes(i) && parseInt(time.$.id) >= 0) {									
+								if (!idmap[time.$.id].includes(i) && parseInt(time.$.id) >= 0) {
 									idmap[time.$.id].push(i);
 								}
 							}
@@ -588,7 +587,7 @@ function importSplitFile(file) {
 
 
 						splits[gameName].runs[curRun].sob = sobover;
-		
+
 						delete splits[gameName].runs[curRun].pbSegments.tmp;
 						delete splits[gameName].runs[curRun].segments.tmp;
 						delete splits[gameName].runs[curRun].stddevSegments.tmp;
@@ -663,7 +662,7 @@ function analysis(splitselect) {
 		tr.append("td").text("Getting WR...").attr("class", "tableNumerical");
 		tr.append("td").attr("class", "tableNumerical").attr("width", "100%");
 	}
-	
+
 	let splitTable = d3.select("#tableDiv").append("table").attr("id", "splitTable");
 	tr = splitTable.append("tr").attr("class", "tableheaders");
 	tr.append("th").text("Total Attempts").attr("class", "tableNumerical");
@@ -680,7 +679,7 @@ function analysis(splitselect) {
 
 	tr.append("td").text(() => {
 		if (typeof Object.entries(split.stddevSegments)[0][1] === "object") {
-			return analyser.timeFormat(d3.mean(Object.values(Object.assign(...[].concat(...Object.entries(split.stddevSegments)).filter((d) => typeof d === "object")))));	
+			return analyser.timeFormat(d3.mean(Object.values(Object.assign(...[].concat(...Object.entries(split.stddevSegments)).filter((d) => typeof d === "object")))));
 		}
 		return analyser.timeFormat(d3.mean(Object.values(split.stddevSegments)));
 	}).attr("class", "tableNumerical");
@@ -855,7 +854,7 @@ function buildGraph(pbonly) {
 
 	// X axis title
 	svg.append("text")
-		.attr("transform", 
+		.attr("transform",
 			"translate(" + (width / 2) + ", " + (height + margin.top + 10) + ")")
 		.style("text-anchor", "middle")
 		.style("fill", "white")
@@ -928,7 +927,7 @@ function saveProgramState() {
 function checkModifiedSplits() {
 	for (let split of splits) {
 		for (let run of split.runs) {
-			fs.stat(runs.path, function(err, stats) { 
+			fs.stat(runs.path, function(err, stats) {
 				if (stats.mtimeMs > run.modified) {
 					reloadSplit(splits.indexOf(split), split.runs.indexOf(run));
 				}
