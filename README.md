@@ -1,5 +1,4 @@
 # SplitsAnalyser
-
 ## This branch will be a complete rework of SplitsAnalyser and it's functionalities. In the time since I've started work on it I've learned a lot of things about development and it would be way easier to just start from scratch than to try fix the current version and keep it compatible with previous ones. This does mean that the program won't retain any user info, but I don't think that's that much of a problem.
 
 ![release_shield](https://img.shields.io/github/v/release/noahkra/splitsanalyser?include_prereleases&color=blue) ![totaldownloads_shield](https://img.shields.io/github/downloads/noahkra/splitsanalyser/total?label=total%20downloads) ![latestdownloads_shield](https://img.shields.io/github/downloads-pre/noahkra/splitsanalyser/latest/total) 
