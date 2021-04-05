@@ -15,3 +15,6 @@ Other node modules needed for development are specified in *package.json*.
 
 ## Contributing guidelines:
 Please make sure to check out CONTRIBUTING.md before contributing any code to the repo!
+
+## Join the discord server
+[![discord invite](https://discordapp.com/api/guilds/828562417256235018/widget.png?style=banner2)](https://discord.gg/nwb62YbSMH)
