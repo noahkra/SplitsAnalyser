@@ -14,3 +14,6 @@ Other node modules needed for development are specified in *package.json*.
 
 ## Contributing guidelines:
 Please make sure to check out CONTRIBUTING.md before contributing any code to the repo!
+
+## v0.4.x startup error
+v0.4.x suffers from a startup error if it's the first installed version. Please follow [these steps](https://github.com/noahkra/SplitsAnalyser/issues/54#issuecomment-830423572) to correct the error if you experience it. The error will be fixed when the next version comes out.
