@@ -10,7 +10,7 @@
   "author": "Noah van der Kraan",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^4.2.12",
+    "electron": "^11.5.0",
     "electron-builder": "^22.3.6"
   },
   "build": {
