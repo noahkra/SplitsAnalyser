@@ -41,3 +41,6 @@ node_modules/
 
 # generate output
 dist
+
+# Linter
+.eslintrc.yml

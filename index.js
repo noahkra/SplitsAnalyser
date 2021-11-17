@@ -9,23 +9,24 @@ var options = {
 };
 
 // Split up the file into multiple files containing similar functions, to make everything less cluttered. I really tried with this but it's harder than I thought so I have no idea if it really helped.
-const analyser                         = require('./analyser.js');
-const gui                              = require('./gui.js');
+const analyser                         = require("./analyser.js");
+const gui                              = require("./gui.js");
 
 // Dependencies, sorted in decending order of line length because it looks neater
-const winscreen                        = require('electron').remote.screen;
-const xml2js                           = require('xml2js').parseString;
-const { dialog }                       = require('electron').remote;
-const { shell, ipcRenderer, webFrame } = require('electron');
-const request                          = require('request');
-const semVer                           = require('semver');
-const path                             = require('path');
-const fs                               = require('fs');
+const winscreen                        = require("electron").remote.screen;
+const xml2js                           = require("xml2js").parseString;
+const { dialog }                       = require("electron").remote;
+const { shell, ipcRenderer, webFrame } = require("electron");
+const semVer                           = require("semver");
+const path                             = require("path");
+const fs                               = require("fs");
 
 const saveLocation = process.env.APPDATA + "\\splitsAnalyser\\";
 
+const srcAPI = async url => (await fetch("https://www.speedrun.com/api/v1" + url)).json();
+
 // Version
-const version = "0.4.1";
+const version = "0.4.2";
 d3.select("#versionNumber").text(version); //set the version text to the correct number
 
 // Set window title
@@ -79,7 +80,7 @@ dragdropDiv.ondrop = (event) => {
 	d3.select("#dragdropSpan").style("opacity", "0");
 	d3.select("#dragdropDiv").style("opacity", "0")
 		.style("pointer-events", "none");
-	
+
 	for (let i of event.dataTransfer.files) {
 		if (i.path.endsWith(".lss")) {
 			importSplitFile(i.path);
@@ -89,7 +90,7 @@ dragdropDiv.ondrop = (event) => {
 };
 
 // handle new window bounds when window is changed and main process sends over getbounds event.
-ipcRenderer.on('getBounds', (event, arg) => {
+ipcRenderer.on("getBounds", (event, arg) => {
 	if (winscreen.getDisplayNearestPoint({x: arg.x + 8, y: arg.y + 8}).workAreaSize.width < 1920) {
 		webFrame.setZoomFactor(winscreen.getDisplayNearestPoint({x: arg.x + 8, y: arg.y + 8}).workAreaSize.width / 1920);
 	} else {
@@ -101,7 +102,7 @@ ipcRenderer.on('getBounds', (event, arg) => {
 
 // Keyboard shortcuts, woo!
 // Most of these just execute the onclick function of the action the shortcut replaces
-window.addEventListener('keyup', (event) => { 
+window.addEventListener("keyup", (event) => {
 	// console.log(event); // for adding new shortcuts. Uncomment if you want to do that
 	let node;
 
@@ -109,61 +110,61 @@ window.addEventListener('keyup', (event) => {
 	let ctrl = event.ctrlKey;
 	let shift = event.shiftKey;
 	switch (event.key) {
-		case "F2":
-			d3.select(".splitActive").select(".splitName").node().onclick();
+	case "F2":
+		d3.select(".splitActive").select(".splitName").node().onclick();
 		break;
-		case "Escape":
-			if (d3.select("#settingsContainer").style("opacity")) {
-				gui.closeSettings();
-			}
-		break;
-
-		case "ArrowUp":
-			node = d3.select(".splitActive").node();
-			if (node.previousSibling) {
-				node.previousSibling.onclick();
-			}
-		break;
-		case "ArrowDown":
-			node = d3.select(".splitActive").node();
-			if (node.nextSibling) {
-				node.nextSibling.onclick();
-			}
+	case "Escape":
+		if (d3.select("#settingsContainer").style("opacity")) {
+			gui.closeSettings();
+		}
 		break;
 
-		case "Tab":
-			if (ctrl) {
-				node = d3.select(".gameActive").node().parentElement;
-				if (shift) {
-					if (node.previousSibling) {
-						node.previousSibling.firstElementChild.onclick();
-					}
-				} else {
-					if (node.nextSibling && node.nextSibling.firstElementChild.tagName === "IMG") {
-						node.nextSibling.firstElementChild.onclick();
-					}
+	case "ArrowUp":
+		node = d3.select(".splitActive").node();
+		if (node.previousSibling) {
+			node.previousSibling.onclick();
+		}
+		break;
+	case "ArrowDown":
+		node = d3.select(".splitActive").node();
+		if (node.nextSibling) {
+			node.nextSibling.onclick();
+		}
+		break;
+
+	case "Tab":
+		if (ctrl) {
+			node = d3.select(".gameActive").node().parentElement;
+			if (shift) {
+				if (node.previousSibling) {
+					node.previousSibling.firstElementChild.onclick();
+				}
+			} else {
+				if (node.nextSibling && node.nextSibling.firstElementChild.tagName === "IMG") {
+					node.nextSibling.firstElementChild.onclick();
 				}
 			}
+		}
 		break;
 
-		case "p":
-			d3.select("#splitsGraphSet").select("input").node().onclick();
+	case "p":
+		d3.select("#splitsGraphSet").select("input").node().onclick();
 		break;
 
-		case "n":
-			if (ctrl) {
-				uploadSplits();
-			}
+	case "n":
+		if (ctrl) {
+			uploadSplits();
+		}
 		break;
 
-		case "Delete":
-			d3.select(".splitActive").select("svg").select("use").node().onclick();
+	case "Delete":
+		d3.select(".splitActive").select("svg").select("use").node().onclick();
 		break;
 
-		case "c":
-			for (let i = 0; i < Object.keys(splits[game_HasFocus].runs[split_HasFocus.substring(split_HasFocus.indexOf("_") + 1)].segments).length; i++) {
-				d3.select(".th" + i).node().onclick();
-			}
+	case "c":
+		for (let i = 0; i < Object.keys(splits[game_HasFocus].runs[split_HasFocus.substring(split_HasFocus.indexOf("_") + 1)].segments).length; i++) {
+			d3.select(".th" + i).node().onclick();
+		}
 		break;
 
 
@@ -198,8 +199,8 @@ function deleteSplit(split, game, preconfirm = false) {
 function uploadSplits() {
 	let path = dialog.showOpenDialog({
 		title: "Choose a splits file to upload.",
-		filters: [{name: "LSS file", extensions: ['lss']}],
-		properties: ['openFile', 'multiSelections']
+		filters: [{name: "LSS file", extensions: ["lss"]}],
+		properties: ["openFile", "multiSelections"]
 	});
 
 	if (!path) { return; } // return if open dialog was cancelled.
@@ -243,17 +244,17 @@ function splitsSortBy(sort) {
 		b = b[1];
 
 		switch (sort) {
-			case "ByName":
-				a = a.name.toLowerCase();
-				b = b.name.toLowerCase();
+		case "ByName":
+			a = a.name.toLowerCase();
+			b = b.name.toLowerCase();
 			break;
-			case "ByCategory":
-				a = a.category.toLowerCase();
-				b = b.category.toLowerCase();
+		case "ByCategory":
+			a = a.category.toLowerCase();
+			b = b.category.toLowerCase();
 			break;
-			case "ByTime":
-				a = a.pb[0];
-				b = b.pb[0];
+		case "ByTime":
+			a = a.pb[0];
+			b = b.pb[0];
 			break;
 		}
 
@@ -271,8 +272,8 @@ function splitsSortBy(sort) {
 
 function refreshSplitsList(sortBy) {
 	if (!game_HasFocus) {
-			d3.select("#splitsList").transition().duration(150).ease(d3.easeLinear).style("opacity", "0");
-			d3.select("#selectAGame").transition().duration(70).ease(d3.easeLinear).style("opacity", "1");
+		d3.select("#splitsList").transition().duration(150).ease(d3.easeLinear).style("opacity", "0");
+		d3.select("#selectAGame").transition().duration(70).ease(d3.easeLinear).style("opacity", "1");
 	} else {
 		if (!sortBy) { sortBy = "ByName"; }
 		currSort = sortBy;
@@ -312,7 +313,7 @@ function gameMenu(select) {
 		split_lastFocus[game_HasFocus] = split_HasFocus;
 	}
 	if (!select || select === game_HasFocus) {
-		if (select) {	
+		if (select) {
 			d3.select("#" + select).select("img").attr("class", "gameInactive");
 		}
 		game_HasFocus = null;
@@ -329,21 +330,19 @@ function gameMenu(select) {
 }
 
 function checkVersion() {
-	request({
-		url: "https://api.github.com/repos/noahkra/splitsAnalyser/releases",
+	fetch("https://api.github.com/repos/noahkra/splitsAnalyser/releases", {
 		headers: {
 			"User-Agent": "SplitsAnalyser"
 		}
-	}, function(error, response, body) {
-		if (error) { throw error; }
-		console.log(response);
-		body = JSON.parse(body);
-		if (semVer.gt(semVer.valid(body[0].tag_name), version)) {
-			if (window.confirm("A new version of SplitsAnalyser (" + body[0].tag_name + ") is available on GitHub.\n\nPress OK to go to the download page or Cancel to continue to the program.")) {
-				shell.openExternal(body[0].html_url);
+	})
+		.then(r => r.json())
+		.then(data => {
+			if (semVer.gt(semVer.valid(data[0].tag_name), version)) {
+				if (window.confirm("A new version of SplitsAnalyser (" + data[0].tag_name + ") is available on GitHub.\n\nPress OK to go to the download page or Cancel to continue to the program.")) {
+					shell.openExternal(data[0].html_url);
+				}
 			}
-		}
-	});
+		});
 }
 
 function loadSplits() {
@@ -357,7 +356,7 @@ function loadSplits() {
  		fs.readFile(saveLocation + "splits.json", (err, data) => { // read in splits json
  			if (err) { throw err; }
  			splits = JSON.parse(data);
-			
+
 			for (let i in Object.keys(splits)) {
 				gui.addGame(Object.keys(splits)[i], splits[Object.keys(splits)[i]].metadata.cover, options);
 			}
@@ -381,237 +380,228 @@ function importSplitFile(file) {
 		if (err) { throw err; } // Error handling
 		xml2js(data, {explicitArray: false},(err, result) => { // convert the xml to a JS object we can use
 			let gameName = result.Run.GameName.trim().toLowerCase().replace(/( )/g, "-"); // Variable for the game name which is used throughout this function
-				request({ url: `https://www.speedrun.com/api/v1/games?name=${gameName.replace(/(-)/g, "%20")}` }, function(error, response, body) {
-					try {
-						console.log(result);
-						if (body.startsWith("<")) {
-							throw "Can't reach speedrun.com API. Please try again later.";
-						}
+			srcAPI(`/games?name=${gameName.replace(/(-)/g, "%20")}`).then(data => {
+				if (!(gameName in splits)) {
+					splits[gameName] = {
+						"metadata" : {
+							"cover": `https://www.speedrun.com/gameasset/${data.data[0].id}/cover`
+						},
+						"runs": {}
+					};
 
-						body = JSON.parse(body);
-						if (!(gameName in splits)) {
-							splits[gameName] = {
-								"metadata" : {
-									"cover": `https://www.speedrun.com/themes/${body.data[0].abbreviation}/cover-256.png`
-								},
-								"runs": {}
-							};
+					gui.addGame(gameName, splits[gameName].metadata.cover, options);
 
-							
-						gui.addGame(gameName, splits[gameName].metadata.cover, options);
-							
-						}
+				}
 
-						let curRun = 0;
-						while (splits[gameName].runs[curRun]) {
-							curRun++;
-						}
+				let curRun = 0;
+				while (splits[gameName].runs[curRun]) {
+					curRun++;
+				}
 
-						splits[gameName].runs[curRun] = {
-							"new"               : true,
-							"name"              : path.basename(file).replace(new RegExp(gameName + "|" + result.Run.CategoryName + "|[^0-9a-z ]|lss", "gi"), "").trim(),
-							"file"              : path.basename(file),
-							"path"              : file,
-							"modified"          : new Date().getTime(),
-							"category"          : result.Run.CategoryName,
-							"succesfulAttempts" : {},
-							"segments"          : {},
-							"pb"                : [],
-							"pbSegments"        : {},
-							"stddevSegments"    : {},
-							"sob"               : {}
-						};
+				splits[gameName].runs[curRun] = {
+					"new"               : true,
+					"name"              : path.basename(file).replace(new RegExp(gameName + "|" + result.Run.CategoryName + "|[^0-9a-z ]|lss", "gi"), "").trim(),
+					"file"              : path.basename(file),
+					"path"              : file,
+					"modified"          : new Date().getTime(),
+					"category"          : result.Run.CategoryName,
+					"succesfulAttempts" : {},
+					"segments"          : {},
+					"pb"                : [],
+					"pbSegments"        : {},
+					"stddevSegments"    : {},
+					"sob"               : {}
+				};
 
-						if (splits[gameName].runs[curRun].name.length < 3) {
-							splits[gameName].runs[curRun].name = "Unnamed Split " + curRun;
-						}
+				if (splits[gameName].runs[curRun].name.length < 3) {
+					splits[gameName].runs[curRun].name = "Unnamed Split " + curRun;
+				}
 
-						let attempts = convertToSingleArray(result.Run.AttemptHistory.Attempt);
-					
-						for (let i in attempts) {
-							if (attempts[i].RealTime) {
-								splits[gameName].runs[curRun].succesfulAttempts[attempts[i].$.id] = attempts[i].RealTime;
-							}
-						}
+				let attempts = convertToSingleArray(result.Run.AttemptHistory.Attempt);
 
-						if (Object.keys(splits[gameName].runs[curRun].succesfulAttempts).length === 0) { // if there are no attempts throw empty split error
-							deleteSplit(curRun, gameName);
-							throw "Splits file is empty";
-						}
-
-						splits[gameName].runs[curRun].pb = [Math.min(...attempts.map(
-							d => {
-								if (d.RealTime) {
-									return analyser.time2ms(d.RealTime);
-								}
-							}).filter(d => d)),
-							attempts[attempts.findIndex((d) => d.RealTime !== undefined && analyser.time2ms(d.RealTime) === Math.min(...attempts.map(d => {
-								if (d.RealTime) {
-									return analyser.time2ms(d.RealTime);
-								}
-							}).filter(d => d)))].$.id];
-
-						let segments = result.Run.Segments.Segment;
-
-						for (let i in segments) {
-
-							let isSubsplit = false;
-							if (segments[i].Name.startsWith("-") || segments[i].Name.startsWith("{")) { isSubsplit = true; }
-
-							let segmentName = i + "_" + segments[i].Name; // Set up the segment name
-
-							let segmentTimes = convertToSingleArray(segments[i].SegmentHistory.Time);
-
-							let splitTimes = convertToSingleArray(segments[i].SplitTimes.SplitTime);
-
-							let curTime;
-
-							if (!splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) {
-								throw "Split file doesn't contain any segment times";
-							}
-
-							// Set up the new nested objects
-							if (!parseInt(i)) {
-								splits[gameName].runs[curRun].pbSegments.tmp = {};
-								splits[gameName].runs[curRun].segments.tmp = {};
-								splits[gameName].runs[curRun].stddevSegments.tmp = {};
-								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
-							} else {
-								curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) - 
-									analyser.time2ms(convertToSingleArray(segments[parseInt(i) - 1].SplitTimes.SplitTime)[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
-							}
-
-							// storing pb seperately
-							if (isSubsplit) {
-								// subsplits
-								if (segments[i].Name.startsWith("-")) {
-									splits[gameName].runs[curRun].pbSegments.tmp[segmentName.replace("-", "")] = curTime;
-									
-								}
-								// final subsplit
-								if (segments[i].Name.startsWith("{")) {
-									let curSubsplit = Object.keys(splits[gameName].runs[curRun].pbSegments).length-1;
-									splits[gameName].runs[curRun].pbSegments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = curTime;
-									splits[gameName].runs[curRun].pbSegments["sub" + (parseInt(curSubsplit) + 1) + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].pbSegments.tmp;
-									splits[gameName].runs[curRun].pbSegments.tmp = {};
-								}
-							} else {
-								splits[gameName].runs[curRun].pbSegments[segmentName] = curTime;
-							}
-
-							for (let j in segmentTimes) {
-								if (segmentTimes[j].RealTime) {
-									let runID = segmentTimes[j].$.id;
-									// every run is stored in here, including the pb
-									if (isSubsplit) {
-										// subsplits
-										if (segments[i].Name.startsWith("-")) {
-											if (!splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")]) { splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")] = {}; }
-											splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")][runID] = analyser.time2ms(segmentTimes[j].RealTime);
-
-
-										}
-										// final subsplit
-										if (segments[i].Name.startsWith("{")) {
-											let curSubsplit = Object.keys(splits[gameName].runs[curRun].segments).length;
-											if (!splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)]) { 
-												splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = {}; 
-											}
-											splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)][runID] = analyser.time2ms(segmentTimes[j].RealTime);
-
-											if (parseInt(j) === segmentTimes.length - 1) {
-												splits[gameName].runs[curRun].segments["sub" + curSubsplit + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].segments.tmp;
-												splits[gameName].runs[curRun].segments.tmp = {};
-											}
-										}
-									} else {
-										if (!splits[gameName].runs[curRun].segments[segmentName]) { splits[gameName].runs[curRun].segments[segmentName] = {}; }
-										splits[gameName].runs[curRun].segments[segmentName][runID] = analyser.time2ms(segmentTimes[j].RealTime);
-									}
-								}
-							}
-							
-
-							// Standard deviation
-							if (isSubsplit) {
-								// subsplits
-								if (segments[i].Name.startsWith("-")) {
-									splits[gameName].runs[curRun].stddevSegments.tmp[segmentName.replace("-", "")] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
-								}
-								// final subsplit
-								if (segments[i].Name.startsWith("{")) {
-									let curSubsplit = Object.keys(splits[gameName].runs[curRun].stddevSegments).length-1;
-									splits[gameName].runs[curRun].stddevSegments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
-									splits[gameName].runs[curRun].stddevSegments["sub" + (parseInt(curSubsplit) + 1) + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].stddevSegments.tmp;
-									splits[gameName].runs[curRun].stddevSegments.tmp = {};
-								}
-							} else {
-								splits[gameName].runs[curRun].stddevSegments[segmentName] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
-							}
-						}
-
-						let curbests = {};
-
-						let sobover = {};
-
-						let idmap = {};
-
-						// warning proceed with caution. Do not try to comprehend the kraken of code underneath this comment. it took me several hours to figure out
-
-						for (let i in segments) {
-							curbests[i + "_" + segments[i].Name] = Number.MAX_SAFE_INTEGER;
-							let segmentTimes = convertToSingleArray(segments[i].SegmentHistory.Time);
-							for (let j in segmentTimes) {
-								if (!idmap[segmentTimes[j].$.id]) { idmap[segmentTimes[j].$.id] = []; }
-								if (!idmap[segmentTimes[j].$.id].includes(i) && parseInt(segmentTimes[j].$.id) >= 0) {									
-									idmap[segmentTimes[j].$.id].push(i);
-								}
-							}
-						}
-
-						let idkeys = Object.keys(idmap);
-
-						let segCount = Object.keys(segments).length;
-
-						for (let i = 0; i < idkeys.length; i++) { // i is run
-							let curRunID = idkeys[i];
-							for (let j = 0; j < idmap[curRunID].length; j++) { // j is seg
-								let curSegID = idmap[curRunID][j];
-								let segmentTimes = convertToSingleArray(segments[curSegID].SegmentHistory.Time);
-								if (!segmentTimes[segmentTimes.findIndex((a) => a.$.id === curRunID )].RealTime) { continue; }
-								if (analyser.time2ms(segmentTimes[segmentTimes.findIndex((a) => a.$.id === curRunID )].RealTime) < curbests[idmap[curRunID][j] + "_" + segments[curSegID].Name]) {
-									curbests[idmap[curRunID][j] + "_" + segments[curSegID].Name] = analyser.time2ms(segmentTimes[segmentTimes.findIndex((a) => a.$.id === curRunID )].RealTime);
-								}
-							}
-
-							if (Object.values(curbests).reduce((a, b) => a + b) >= Number.MAX_SAFE_INTEGER) { continue; }
-							sobover[curRunID] = Object.values(curbests).reduce((a, b) => a + b);
-						}
-
-						// okay that was it.
-
-
-						splits[gameName].runs[curRun].sob = sobover;
-		
-						delete splits[gameName].runs[curRun].pbSegments.tmp;
-						delete splits[gameName].runs[curRun].segments.tmp;
-						delete splits[gameName].runs[curRun].stddevSegments.tmp;
-						if (game_HasFocus !== gameName) {
-							gameMenu(gameName);
-						}
-						srcRefresh();
-						refreshSplitsList(currSort);
-						splitMenu(gameName + "_" + curRun);
-						saveSplits();
-					} catch (e) {
-						window.alert("Error: " + e + ".\n\nIf this is an unexpected error, please submit an issue on github with this error, if none are already present.");
-						throw e;
-					} finally { // remove loading div
-						d3.select("#loaddiv").remove();
-						document.body.style = "";
+				for (let i in attempts) {
+					if (attempts[i].RealTime) {
+						splits[gameName].runs[curRun].succesfulAttempts[attempts[i].$.id] = attempts[i].RealTime;
 					}
 				}
-			);
+
+				if (Object.keys(splits[gameName].runs[curRun].succesfulAttempts).length === 0) { // if there are no attempts throw empty split error
+					deleteSplit(curRun, gameName);
+					throw "Splits file is empty";
+				}
+
+				splits[gameName].runs[curRun].pb = [Math.min(...attempts.map(
+					d => {
+						if (d.RealTime) {
+							return analyser.time2ms(d.RealTime);
+						}
+					}).filter(d => d)),
+				attempts[attempts.findIndex((d) => d.RealTime !== undefined && analyser.time2ms(d.RealTime) === Math.min(...attempts.map(d => {
+					if (d.RealTime) {
+						return analyser.time2ms(d.RealTime);
+					}
+				}).filter(d => d)))].$.id];
+
+				let segments = result.Run.Segments.Segment;
+
+				for (let i in segments) {
+
+					let isSubsplit = false;
+					if (segments[i].Name.startsWith("-") || segments[i].Name.startsWith("{")) { isSubsplit = true; }
+
+					let segmentName = i + "_" + segments[i].Name; // Set up the segment name
+
+					let segmentTimes = convertToSingleArray(segments[i].SegmentHistory.Time);
+
+					let splitTimes = convertToSingleArray(segments[i].SplitTimes.SplitTime);
+
+					let curTime;
+
+					if (!splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) {
+						throw "Split file doesn't contain any segment times";
+					}
+
+					// Set up the new nested objects
+					if (!parseInt(i)) {
+						splits[gameName].runs[curRun].pbSegments.tmp = {};
+						splits[gameName].runs[curRun].segments.tmp = {};
+						splits[gameName].runs[curRun].stddevSegments.tmp = {};
+						curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
+					} else {
+						curTime = analyser.time2ms(splitTimes[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime) -
+								analyser.time2ms(convertToSingleArray(segments[parseInt(i) - 1].SplitTimes.SplitTime)[splitTimes.findIndex((a) => a.$.name === "Personal Best")].RealTime);
+					}
+
+					// storing pb seperately
+					if (isSubsplit) {
+						// subsplits
+						if (segments[i].Name.startsWith("-")) {
+							splits[gameName].runs[curRun].pbSegments.tmp[segmentName.replace("-", "")] = curTime;
+
+						}
+						// final subsplit
+						if (segments[i].Name.startsWith("{")) {
+							let curSubsplit = Object.keys(splits[gameName].runs[curRun].pbSegments).length-1;
+							splits[gameName].runs[curRun].pbSegments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = curTime;
+							splits[gameName].runs[curRun].pbSegments["sub" + (parseInt(curSubsplit) + 1) + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].pbSegments.tmp;
+							splits[gameName].runs[curRun].pbSegments.tmp = {};
+						}
+					} else {
+						splits[gameName].runs[curRun].pbSegments[segmentName] = curTime;
+					}
+
+					for (let j in segmentTimes) {
+						if (segmentTimes[j].RealTime) {
+							let runID = segmentTimes[j].$.id;
+							// every run is stored in here, including the pb
+							if (isSubsplit) {
+								// subsplits
+								if (segments[i].Name.startsWith("-")) {
+									if (!splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")]) { splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")] = {}; }
+									splits[gameName].runs[curRun].segments.tmp[segmentName.replace("-", "")][runID] = analyser.time2ms(segmentTimes[j].RealTime);
+
+
+								}
+								// final subsplit
+								if (segments[i].Name.startsWith("{")) {
+									let curSubsplit = Object.keys(splits[gameName].runs[curRun].segments).length;
+									if (!splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)]) {
+										splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = {};
+									}
+									splits[gameName].runs[curRun].segments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)][runID] = analyser.time2ms(segmentTimes[j].RealTime);
+
+									if (parseInt(j) === segmentTimes.length - 1) {
+										splits[gameName].runs[curRun].segments["sub" + curSubsplit + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].segments.tmp;
+										splits[gameName].runs[curRun].segments.tmp = {};
+									}
+								}
+							} else {
+								if (!splits[gameName].runs[curRun].segments[segmentName]) { splits[gameName].runs[curRun].segments[segmentName] = {}; }
+								splits[gameName].runs[curRun].segments[segmentName][runID] = analyser.time2ms(segmentTimes[j].RealTime);
+							}
+						}
+					}
+
+
+					// Standard deviation
+					if (isSubsplit) {
+						// subsplits
+						if (segments[i].Name.startsWith("-")) {
+							splits[gameName].runs[curRun].stddevSegments.tmp[segmentName.replace("-", "")] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
+						}
+						// final subsplit
+						if (segments[i].Name.startsWith("{")) {
+							let curSubsplit = Object.keys(splits[gameName].runs[curRun].stddevSegments).length-1;
+							splits[gameName].runs[curRun].stddevSegments.tmp[segmentName.substring(0, segmentName.indexOf("{")) + segmentName.substring(segmentName.indexOf("}") + 1)] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
+							splits[gameName].runs[curRun].stddevSegments["sub" + (parseInt(curSubsplit) + 1) + "_" + segmentName.substring(segmentName.indexOf("{") + 1, segmentName.indexOf("}"))] = splits[gameName].runs[curRun].stddevSegments.tmp;
+							splits[gameName].runs[curRun].stddevSegments.tmp = {};
+						}
+					} else {
+						splits[gameName].runs[curRun].stddevSegments[segmentName] = d3.deviation(segmentTimes.map((x) => { if (x.RealTime) { return analyser.time2ms(x.RealTime); }} ));
+					}
+				}
+
+				let curbests = {};
+
+				let sobover = {};
+
+				let idmap = {};
+
+				// warning proceed with caution. Do not try to comprehend the kraken of code underneath this comment. it took me several hours to figure out
+
+				for (let i in segments) {
+					curbests[i + "_" + segments[i].Name] = Number.MAX_SAFE_INTEGER;
+					let segmentTimes = convertToSingleArray(segments[i].SegmentHistory.Time);
+					for (let j in segmentTimes) {
+						if (!idmap[segmentTimes[j].$.id]) { idmap[segmentTimes[j].$.id] = []; }
+						if (!idmap[segmentTimes[j].$.id].includes(i) && parseInt(segmentTimes[j].$.id) >= 0) {
+							idmap[segmentTimes[j].$.id].push(i);
+						}
+					}
+				}
+
+				let idkeys = Object.keys(idmap);
+
+				let segCount = Object.keys(segments).length;
+
+				for (let i = 0; i < idkeys.length; i++) { // i is run
+					let curRunID = idkeys[i];
+					for (let j = 0; j < idmap[curRunID].length; j++) { // j is seg
+						let curSegID = idmap[curRunID][j];
+						let segmentTimes = convertToSingleArray(segments[curSegID].SegmentHistory.Time);
+						if (!segmentTimes[segmentTimes.findIndex((a) => a.$.id === curRunID )].RealTime) { continue; }
+						if (analyser.time2ms(segmentTimes[segmentTimes.findIndex((a) => a.$.id === curRunID )].RealTime) < curbests[idmap[curRunID][j] + "_" + segments[curSegID].Name]) {
+							curbests[idmap[curRunID][j] + "_" + segments[curSegID].Name] = analyser.time2ms(segmentTimes[segmentTimes.findIndex((a) => a.$.id === curRunID )].RealTime);
+						}
+					}
+
+					if (Object.values(curbests).reduce((a, b) => a + b) >= Number.MAX_SAFE_INTEGER) { continue; }
+					sobover[curRunID] = Object.values(curbests).reduce((a, b) => a + b);
+				}
+
+				// okay that was it.
+
+
+				splits[gameName].runs[curRun].sob = sobover;
+
+				delete splits[gameName].runs[curRun].pbSegments.tmp;
+				delete splits[gameName].runs[curRun].segments.tmp;
+				delete splits[gameName].runs[curRun].stddevSegments.tmp;
+				if (game_HasFocus !== gameName) {
+					gameMenu(gameName);
+				}
+				srcRefresh();
+				refreshSplitsList(currSort);
+				splitMenu(gameName + "_" + curRun);
+				saveSplits();
+			})
+				.catch(e => {
+					window.alert("Error: " + e + ".\n\nIf this is an unexpected error, please submit an issue on github with this error, if none are already present.");
+				})
+				.finally(() => { // remove loading div
+					d3.select("#loaddiv").remove();
+					document.body.style = "";
+				});
 		});
 	});
 }
@@ -628,26 +618,26 @@ function analysis(splitselect) {
 
 	// put the wr run into a variable
 
-		let srcTable = d3.select("#analysisArea").append("div").attr("id", "tableDiv").append("table").attr("id", "srcTable");
-		let tr = srcTable.append("tr");
-		tr.append("th").text("Current WR").attr("class", "tableNumerical");
-		tr.append("th");
-		tr = srcTable.append("tr").attr("class", "splitstablerow");
-		let wr;
+	let srcTable = d3.select("#analysisArea").append("div").attr("id", "tableDiv").append("table").attr("id", "srcTable");
+	let tr = srcTable.append("tr");
+	tr.append("th").text("Current WR").attr("class", "tableNumerical");
+	tr.append("th");
+	tr = srcTable.append("tr").attr("class", "splitstablerow");
+	let wr;
 	if (src[game_HasFocus].records) {
 		if (src[game_HasFocus].levels.data.find(a => getLevDistance(a.name, split.name) >= 0.3)) {
 			wr = src[game_HasFocus].records.data.filter(
-					a => a.category === src[game_HasFocus].categories.data.filter(
-						a => a.type === "per-level").find(a => getLevDistance(a.name, split.category) >= 0.9).id)
+				a => a.category === src[game_HasFocus].categories.data.filter(
+					a => a.type === "per-level").find(a => getLevDistance(a.name, split.category) >= 0.9).id)
 				.find(
 					a => a.level === src[game_HasFocus].levels.data.find(
 						a => getLevDistance(a.name, split.name) >= 0.3).id)
 				.runs[0].run;
 		} else {
 			wr = src[game_HasFocus].records.data.filter(
-					a => a.category === src[game_HasFocus].categories.data.filter(
-						a => a.type === "per-game").find(a => getLevDistance(a.name, split.category) >= 0.9).id)
-			[0].runs[0].run;
+				a => a.category === src[game_HasFocus].categories.data.filter(
+					a => a.type === "per-game").find(a => getLevDistance(a.name, split.category) >= 0.9).id)
+				[0].runs[0].run;
 		}
 
 		tr.append("td").text(
@@ -667,7 +657,7 @@ function analysis(splitselect) {
 		tr.append("td").text("Getting WR...").attr("class", "tableNumerical");
 		tr.append("td").attr("class", "tableNumerical").attr("width", "100%");
 	}
-	
+
 	let splitTable = d3.select("#tableDiv").append("table").attr("id", "splitTable");
 	tr = splitTable.append("tr").attr("class", "tableheaders");
 	tr.append("th").text("Total Attempts").attr("class", "tableNumerical");
@@ -684,7 +674,7 @@ function analysis(splitselect) {
 
 	tr.append("td").text(() => {
 		if (typeof Object.entries(split.stddevSegments)[0][1] === "object") {
-			return analyser.timeFormat(d3.mean(Object.values(Object.assign(...[].concat(...Object.entries(split.stddevSegments)).filter((d) => typeof d === "object")))));	
+			return analyser.timeFormat(d3.mean(Object.values(Object.assign(...[].concat(...Object.entries(split.stddevSegments)).filter((d) => typeof d === "object")))));
 		}
 		return analyser.timeFormat(d3.mean(Object.values(split.stddevSegments)));
 	}).attr("class", "tableNumerical");
@@ -705,16 +695,16 @@ function analysis(splitselect) {
 		if (splitKeys[i].startsWith("sub")) { // checking if it's a subsplit
 			tr = segmentsTable.append("tr").attr("class", "tablesubsplitheader");
 			tr.append("th").attr("class", "tableSubsplit th" + i)
-					.text(splitKeys[i].substring(splitKeys[i].indexOf("_") + 1)).attr("colspan", "5")
-					.attr("onclick", "gui.collapseSeg('" + i + "')")
-					.attr("title", "Collapse segment")
+				.text(splitKeys[i].substring(splitKeys[i].indexOf("_") + 1)).attr("colspan", "5")
+				.attr("onclick", "gui.collapseSeg('" + i + "')")
+				.attr("title", "Collapse segment")
 				.append("svg")
-					.attr("preserveAspectRatio", "none")
-					.attr("viewBox", "0 0 24 24")
-					.style("transform", "scale(1.2)")
-					.attr("class", "dropDown")
+				.attr("preserveAspectRatio", "none")
+				.attr("viewBox", "0 0 24 24")
+				.style("transform", "scale(1.2)")
+				.attr("class", "dropDown")
 				.append("use")
-					.attr("href", "#icon_dropUp");
+				.attr("href", "#icon_dropUp");
 			let subSplitKeys = Object.keys(split.segments[splitKeys[i]]);
 			for (let j in subSplitKeys) {
 				tr = segmentsTable.append("tr").attr("class", "tableRow tr" + i);
@@ -744,8 +734,8 @@ function analysis(splitselect) {
 	buildGraph = function(pbonly) {
 		d3.select("#splitsGraphDiv").remove();
 		let margin = {top: 30, right: 30, bottom: 60, left: 90},
-		width      = 800 - margin.left - margin.right,
-		height     = 400 - margin.top - margin.bottom;
+			width      = 800 - margin.left - margin.right,
+			height     = 400 - margin.top - margin.bottom;
 
 
 		let dat  = [];
@@ -793,7 +783,7 @@ function analysis(splitselect) {
 			.range([height, 0]).nice();
 		svg.append("g")
 			.call(d3.axisLeft(y)
-			.tickFormat(d => { return analyser.timeFormat(d); })
+				.tickFormat(d => { return analyser.timeFormat(d); })
 			);
 
 		svg.append("path")
@@ -853,7 +843,7 @@ function analysis(splitselect) {
 
 		// X axis title
 		svg.append("text")
-			.attr("transform", 
+			.attr("transform",
 				"translate(" + (width / 2) + ", " + (height + margin.top + 10) + ")")
 			.style("text-anchor", "middle")
 			.style("fill", "white")
@@ -944,7 +934,7 @@ function saveProgramState() {
 function checkModifiedSplits() {
 	for (let i in splits) {
 		for (let j in splits[i].runs) {
-			fs.stat(splits[i].runs[j].path, function(err, stats) { 
+			fs.stat(splits[i].runs[j].path, function(err, stats) {
 				if (stats.mtimeMs > splits[i].runs[j].modified) {
 					reloadSplit(j, i);
 				}
@@ -979,8 +969,8 @@ function renameSplit(split, game) {
 			event.preventDefault();
 			if (input.value.replace(/ /g, "").length < 3) {
 				window.alert("Please use a name with a minimum of 3 non-null characters.");
-					input.focus();
-					input.select();
+				input.focus();
+				input.select();
 				return;
 			}
 			input.removeEventListener("keyup", func);
@@ -1017,21 +1007,25 @@ function srcRefresh() {
 		let links;
 		src[game] = {};
 
-		request({ url: `https://www.speedrun.com/api/v1/games?name=${game.replace(/(-)/g, "%20")}`}, function(err, response, body) {
-			links = JSON.parse(body).data[0].links;
-			request({ url: `${links.find(a => a.rel === "levels").uri}?max=200`}, function(err, response, body) {
-				src[game].levels = JSON.parse(body);
-				request({ url: `${links.find(a => a.rel === "categories").uri}?max=200`}, function(err, response, body) {
-					src[game].categories = JSON.parse(body);
-					request({ url: `${links.find(a => a.rel === "records").uri}?top=1&max=200`}, function(err, response, body) {
-						src[game].records = JSON.parse(body);
-						if (split_HasFocus) {
-							analysis(split_HasFocus);
-						}
-					});
-				});
+		srcAPI(`/games?name=${game.replace(/(-)/g, "%20")}`)
+			.then(data => {
+				links = data.data[0].links;
+				return fetch(`${links.find(a => a.rel === "levels").uri}?max=200`).then(r => r.json());
+			})
+			.then(data => {
+				src[game].levels = data;
+				return fetch(`${links.find(a => a.rel === "categories").uri}?max=200`).then(r => r.json());
+			})
+			.then(data => {
+				src[game].categories = data;
+				return fetch(`${links.find(a => a.rel === "records").uri}?top=1&max=200`).then(r => r.json());
+			})
+			.then(data => {
+				src[game].records = data;
+				if (split_HasFocus) {
+					analysis(split_HasFocus);
+				}
 			});
-		});
 	}
 
 }
